@@ -11,19 +11,39 @@ def image_cache_status():
   return status
 
 def enable_image_collection():
-  requests.get(f'{CACHE_ROUTE}/enable')
+  res = requests.get(f'{CACHE_ROUTE}/enable')
+  if res.status_code != 200:
+    raise Exception(res.json())
+
+  print(res.json())
 
 def disable_image_collection():
-  requests.get(f'{CACHE_ROUTE}/disable')  
+  res = requests.get(f'{CACHE_ROUTE}/disable')  
+  if res.status_code != 200:
+    raise Exception(res.json())
+
+  print(res.json())
 
 def purge_data():
-  requests.get(f'{CACHE_ROUTE}/purge')  
+  res = requests.get(f'{CACHE_ROUTE}/purge')  
+  if res.status_code != 200:
+    raise Exception(res.json())
+
+  print(res.json())
 
 def enable_stereo_collection():
-  requests.post(f'{CACHE_ROUTE}/enableDepthFlag')
+  res = requests.post(f'{CACHE_ROUTE}/enableDepthFlag')
+  if res.status_code != 200:
+    raise Exception(res.json())
+
+  print(res.json())
 
 def disable_stereo_collection():
-  requests.post(f'{CACHE_ROUTE}/disableDepthFlag')
+  res = requests.post(f'{CACHE_ROUTE}/disableDepthFlag')
+  if res.status_code != 200:
+    raise Exception(res.json())
+
+  print(res.json())
 
 def list_contents(since = None, until = None):
   url = f'{CACHE_ROUTE}/list'
@@ -52,3 +72,5 @@ def upload_to_s3(handle, aws_bucket, aws_region, aws_secret, aws_key):
 
   if res.status_code != 200:
     raise Exception(res.json())
+
+  print (res.json())
