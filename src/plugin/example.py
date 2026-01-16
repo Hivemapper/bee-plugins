@@ -39,13 +39,17 @@ def _setup(state):
 def _loop(state):
   contents = beeutil.list_contents(state['last_checked'])
   
+  if len(contents) == 0:
+    vlog(f'no new content since {state["last_checked"]}')
+    return
+
   vlog(f'since {state["last_checked"]}:')
   vlog(contents)
 
   for handle in contents:
     state['uploadQueue'].put(handle)
 
-  state['last_checked'] = handle[-1].split('_')[0]
+  state['last_checked'] = contents[-1].split('_')[0]
 
 def main():
   state = {
