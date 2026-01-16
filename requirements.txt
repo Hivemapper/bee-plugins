@@ -1,3 +1,5 @@
 argparse
+paramiko
 requests
+scp
 
