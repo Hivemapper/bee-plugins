@@ -10,6 +10,17 @@ PAUSE_UPDATES_ROUTE = DEVICE_PLUGIN_ROUTE + 'setPausePluginUpdates'
 
 TEMPLATE_PLUGIN_PATH = '/data/plugins/template-plugin/template-plugin'
 
+def run_command_over_ssh(ssh, cmd):
+  stdin, stdout, stderr = ssh.exec_command(cmd)
+
+  stdout_output = stdout.read().decode().strip()
+  stderr_output = stderr.read().decode().strip()
+
+  if stdout_output:
+    print(stdout_output)
+  if stderr_output:
+    raise Exception(stderr_output)  
+
 def toggle_dev_mode(pause_val):
   res = requests.post(PAUSE_UPDATES_ROUTE, json={"pausePluginUpdates": pause_val})
   if res.status != 200:
@@ -31,12 +42,14 @@ def push_local_python_update(filepath):
     with SCPClient(ssh.get_transport()) as scp:
       scp.put(filepath, TEMPLATE_PLUGIN_PATH)
 
+    run_command_over_ssh(ssh, f'chmod 700 {TEMPLATE_PLUGIN_PATH}')
+
 def restart_template_plugin_service():
   with paramiko.SSHClient() as ssh:
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(HOST_IP, username='root')
 
-    stdin, stdout, stderr = ssh.exec_command('systemctl restart template-plugin')  
+    run_command_over_ssh(ssh, 'systemctl restart template-plugin')
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description="Local dev tooling for Bee Plugin development.")
