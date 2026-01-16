@@ -1,10 +1,10 @@
 import requests
 
-HOST_URL = 'http://192.168.0.10:5000'
+HOST_URL = 'http://127.0.0.1:5000'
 CACHE_ROUTE = f'{HOST_URL}/cache'
 
 def image_cache_status():
-  res = requests.get('http://192.168.0.10:5000/cache/status')
+  res = requests.get(f'{CACHE_ROUTE}/status')
   if res.status_code != 200:
     raise Exception(res.json())
 
@@ -63,8 +63,8 @@ def list_contents(since = None, until = None):
   contents = res.json()
   return contents
 
-def upload_to_s3(handle, aws_bucket, aws_region, aws_secret, aws_key):
-  url = f'{CACHE_ROUTE}/uploadS3/{handle}?key={aws_key}&bucket={aws_bucket}&region={aws_region}'
+def upload_to_s3(prefix, handle, aws_bucket, aws_region, aws_secret, aws_key):
+  url = f'{CACHE_ROUTE}/uploadS3/{handle}?prefix={prefix}&key={aws_key}&bucket={aws_bucket}&region={aws_region}'
   headers = {
     'authorization': aws_secret,
   }

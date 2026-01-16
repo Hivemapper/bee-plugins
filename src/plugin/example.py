@@ -2,6 +2,7 @@ import beeutil
 import queue
 import threading
 import time
+import uuid
 
 AWS_BUCKET = 'your_bucket'
 AWS_REGION = 'your-aws-region'
@@ -25,13 +26,15 @@ def _setup(state):
     vlog('enabling stereo caching')
     beeutil.enable_stereo_collection()
 
+  state['session'] = str(uuid.uuid1())
+
   vlog(f'initializing {UPLOAD_THREADS} upload workers')
   state['uploadQueue'] = queue.Queue()
 
   def upload_worker():
     while True:
       handle = state['uploadQueue'].get()
-      beeutil.upload_to_s3(handle, BUCKET, REGION, AWS_SECRET, AWS_KEY)
+      beeutil.upload_to_s3(state['session'], handle, BUCKET, REGION, AWS_SECRET, AWS_KEY)
 
   state['threads'] = [threading.Thread(target=upload_worker, daemon=True).start() for i in range(UPLOAD_THREADS)]
   state['uploadQueue'] = queue.Queue()
@@ -54,6 +57,7 @@ def _loop(state):
 def main():
   state = {
     'last_checked': None,
+    'session': '',
     'threads': None,
     'uploadQueue': None,
   }
