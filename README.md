@@ -1,6 +1,11 @@
 # bee-plugins
 Develop realtime mapping and edge AI solutions with the Bee
 
+## Installation
+```
+python3 -m pip install -r requirements.txt
+```
+
 ## Development
 Use `src/plugin/example.py` to edit variables, etc.
 
