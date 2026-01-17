@@ -20,6 +20,8 @@ bash build.sh hello
 Use `src/plugin/example.py` to edit variables, etc.
 
 ### Local Development
+While connected to the device over WiFi (password `hivemapper`), run the following to interact with the device
+
 *To disable automatic over-the-air updates, which will wipe out local changes, enable dev mode:*
 ```
 python3 devtools.py -dI
