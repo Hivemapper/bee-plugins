@@ -2,6 +2,7 @@ import argparse
 import paramiko
 import requests
 
+from requests.exceptions import HTTPError
 from scp import SCPClient
 
 HOST_IP = '192.168.0.10'
@@ -23,8 +24,16 @@ def run_command_over_ssh(ssh, cmd):
 
 def toggle_dev_mode(pause_val):
   res = requests.post(PAUSE_UPDATES_ROUTE, json={"pausePluginUpdates": pause_val})
-  if res.status_code != 200:
-    raise Exception(res.json())
+
+  try:
+    res.raise_for_status()
+  except HTTPError as http_err:
+    try:
+      print(res.json())
+    except Exception:
+      pass
+
+    raise
 
   return res.json()
 
