@@ -46,7 +46,7 @@ def enable_dev_mode():
 def push_local_python_update(filepath):
   with paramiko.SSHClient() as ssh:
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(HOST_IP, username='root')
+    ssh.connect(HOST_IP, username='root', password="", look_for_keys=False, allow_agent=False)
 
     with SCPClient(ssh.get_transport()) as scp:
       scp.put(filepath, TEMPLATE_PLUGIN_PATH)
@@ -56,7 +56,7 @@ def push_local_python_update(filepath):
 def restart_template_plugin_service():
   with paramiko.SSHClient() as ssh:
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(HOST_IP, username='root')
+    ssh.connect(HOST_IP, username='root', password="", look_for_keys=False, allow_agent=False)
 
     run_command_over_ssh(ssh, 'systemctl restart template-plugin')
 
