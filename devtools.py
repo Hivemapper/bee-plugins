@@ -23,7 +23,7 @@ def run_command_over_ssh(ssh, cmd):
 
 def toggle_dev_mode(pause_val):
   res = requests.post(PAUSE_UPDATES_ROUTE, json={"pausePluginUpdates": pause_val})
-  if res.status != 200:
+  if res.status_code != 200:
     raise Exception(res.json())
 
   return res.json()
