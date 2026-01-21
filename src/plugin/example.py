@@ -65,7 +65,7 @@ def _loop(state):
       vlog(e)
 
   for handle in contents:
-      state['uploadQueue'].put(handle)
+    state['uploadQueue'].put(handle)
 
   state['last_checked'] = contents[-1].split('_')[0]
 
