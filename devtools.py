@@ -187,8 +187,8 @@ if __name__ == '__main__':
     print('Dev Mode disabled')
 
   if args.wifi_info:
-    print(wifi_status)
-    print(wifi_settings)
+    print(wifi_status())
+    print(wifi_settings())
 
   if args.wifi_scan:
     print(scan_wifi_networks())
