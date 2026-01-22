@@ -1,14 +1,14 @@
 import argparse
 import paramiko
-import requests
 
-from requests.exceptions import HTTPError
 from scp import SCPClient
+from pprint import pp
+from util import do_json_get, do_json_post
 
 HOST_IP = '192.168.0.10'
 HOST = f'http://{HOST_IP}:5000'
 API_ROUTE = f'{HOST}/api/1'
-WIFI_ROUTE = f'{HOST}/wifiClient'
+WIFI_ROUTE = f'{API_ROUTE}/wifiClient'
 CONNECTIVITY_ROUTE = f'{API_ROUTE}/config/uploadMode'
 
 TEMPLATE_PLUGIN_PATH = '/data/plugins/template-plugin/template-plugin'
@@ -25,19 +25,7 @@ def run_command_over_ssh(ssh, cmd):
     raise Exception(stderr_output)
 
 def toggle_client_connectivity_mode(mode):
-  res = requests.post(CONNECTIVITY_ROUTE, json={'mode': mode})
-
-  try:
-    res.raise_for_status()
-  except HTTPError as http_err:
-    try:
-      print(res.json())
-    except Exception:
-      pass
-
-    raise
-
-  return res.json()
+  return do_json_post(CONNECTIVITY_ROUTE, {'mode': mode})
 
 def switch_to_lte_client_mode():
   toggle_client_connectivity_mode('lte')
@@ -53,68 +41,31 @@ def connect_to_wifi_network(ssid, password, security='WPA2', freq=2417):
     'security': security,
     'freq': freq,
   }
-  res = requests.post(WIFI_ROUTE + '/settings', json=config)
 
-  try:
-    res.raise_for_status()
-  except HTTPError as http_err:
-    try:
-      print(res.json())
-    except Exception:
-      pass
-
-    raise
-
-  return res.json()
+  url = WIFI_ROUTE + '/settings'
+  return do_json_post(url, config)
 
 def scan_wifi_networks():
-  res = requests.get(WIFI_ROUTE + '/scan')
-
-  try:
-    res.raise_for_status()
-  except HTTPError as http_err:
-    try:
-      print(res.json())
-    except Exception:
-      pass
-
-    raise
-
-  return res.json()
+  url = WIFI_ROUTE + '/scan'
+  return do_json_get(url)
 
 def wifi_settings():
-  res = requests.get(WIFI_ROUTE + '/settings')
-
-  try:
-    res.raise_for_status()
-  except HTTPError as http_err:
-    try:
-      print(res.json())
-    except Exception:
-      pass
-
-    raise
-
-  return res.json()  
+  url = WIFI_ROUTE + '/settings'
+  return do_json_get(url)
 
 def wifi_status():
-  res = requests.get(WIFI_ROUTE + '/status')
+  url = WIFI_ROUTE + '/status'
+  return do_json_get(url)
 
-  try:
-    res.raise_for_status()
-  except HTTPError as http_err:
-    try:
-      print(res.json())
-    except Exception:
-      pass
-
-    raise
-
-  return res.json()
+def info():
+  url = f'{API_ROUTE}/info'
+  res = do_json_get(url)
+  return res
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description="Local dev tooling for Bee Plugin development.")
 
+  parser.add_argument('-I', '--info', help="Device info", action='store_true')
   parser.add_argument('-L', '--lte', help="Use LTE for connectivity", action='store_true')
   parser.add_argument('-W', '--wifi_info', help="Show WiFi status", action='store_true')
   parser.add_argument('-Ws', '--wifi_scan', help="Show visible WiFi networks", action='store_true')
@@ -123,12 +74,14 @@ if __name__ == '__main__':
 
   args = parser.parse_args()
 
+  if args.info:
+    pp(info())
+
   if args.wifi_info:
-    print(wifi_status())
-    print(wifi_settings())
+    pp(wifi_status())
 
   if args.wifi_scan:
-    print(scan_wifi_networks())
+    pp(scan_wifi_networks())
 
   if args.lte:
     switch_to_lte_client_mode()
