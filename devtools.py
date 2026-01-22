@@ -6,8 +6,9 @@ from requests.exceptions import HTTPError
 from scp import SCPClient
 
 HOST_IP = '192.168.0.10'
-API_ROUTE = f'http://{HOST_IP}:5000/api/1'
-WIFI_ROUTE = f'http://{HOST_IP}:5000/wifiClient'
+HOST = f'http://{HOST_IP}:5000'
+API_ROUTE = f'{HOST}/api/1'
+WIFI_ROUTE = f'{HOST}/wifiClient'
 CONNECTIVITY_ROUTE = f'{API_ROUTE}/config/uploadMode'
 DEVICE_PLUGIN_ROUTE = f'{API_ROUTE}/plugin/'
 PAUSE_UPDATES_ROUTE = DEVICE_PLUGIN_ROUTE + 'setPausePluginUpdates'
