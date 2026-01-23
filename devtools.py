@@ -7,7 +7,7 @@ from scp import SCPClient
 
 HOST_IP = '192.168.0.10'
 DEVICE_PLUGIN_ROUTE = f'http://{HOST_IP}:5000/api/1/plugin/'
-PAUSE_UPDATES_ROUTE = DEVICE_PLUGIN_ROUTE + 'setPausePluginUpdates'
+PAUSE_UPDATES_ROUTE = DEVICE_PLUGIN_ROUTE + 'setPluginDevMode'
 
 TEMPLATE_PLUGIN_PATH = '/data/plugins/template-plugin/template-plugin'
 
