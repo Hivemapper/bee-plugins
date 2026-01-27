@@ -1,12 +1,13 @@
 import argparse
 import paramiko
-import requests
 
-from requests.exceptions import HTTPError
+from util import do_json_post
 from scp import SCPClient
 
 HOST_IP = '192.168.0.10'
-DEVICE_PLUGIN_ROUTE = f'http://{HOST_IP}:5000/api/1/plugin/'
+HOST = f'http://{HOST_IP}:5000'
+API_ROUTE = f'{HOST}/api/1'
+DEVICE_PLUGIN_ROUTE = f'{API_ROUTE}/plugin/'
 PAUSE_UPDATES_ROUTE = DEVICE_PLUGIN_ROUTE + 'setPluginDevMode'
 
 TEMPLATE_PLUGIN_PATH = '/data/plugins/template-plugin/template-plugin'
@@ -23,19 +24,8 @@ def run_command_over_ssh(ssh, cmd):
     raise Exception(stderr_output)  
 
 def toggle_dev_mode(pause_val):
-  res = requests.post(PAUSE_UPDATES_ROUTE, json={"pausePluginUpdates": pause_val})
-
-  try:
-    res.raise_for_status()
-  except HTTPError as http_err:
-    try:
-      print(res.json())
-    except Exception:
-      pass
-
-    raise
-
-  return res.json()
+  data = {"pausePluginUpdates": pause_val}
+  return do_json_post(PAUSE_UPDATES_ROUTE, data)
 
 def disable_dev_mode():
   toggle_dev_mode('false')
