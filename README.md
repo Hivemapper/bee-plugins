@@ -66,6 +66,12 @@ python3 device.py -W
 ```
 
 
+### Calibration
+*To retrieve device-specific calibration data:*
+```
+python3 device.py -C > calibration.json
+```
+
 ## Deploy
 Use your provided plugin name and secret key to build and deploy the build artifact
 ```

@@ -1,4 +1,5 @@
 import argparse
+import json
 import paramiko
 
 from scp import SCPClient
@@ -20,7 +21,7 @@ def run_command_over_ssh(ssh, cmd):
   stderr_output = stderr.read().decode().strip()
 
   if stdout_output:
-    print(stdout_output)
+    return stdout_output
   if stderr_output:
     raise Exception(stderr_output)
 
@@ -62,9 +63,16 @@ def info():
   res = do_json_get(url)
   return res
 
+def calibration():
+  with paramiko.SSHClient() as ssh:
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect(HOST_IP, username='root', password="", look_for_keys=False)
+    return json.loads(str(run_command_over_ssh(ssh, 'cat /data/cache/calibration.json')).strip())
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description="Local dev tooling for Bee Plugin development.")
 
+  parser.add_argument('-C', '--calibration', help="Device calibration profile", action='store_true')
   parser.add_argument('-I', '--info', help="Device info", action='store_true')
   parser.add_argument('-L', '--lte', help="Use LTE for connectivity", action='store_true')
   parser.add_argument('-W', '--wifi_info', help="Show WiFi status", action='store_true')
@@ -73,6 +81,9 @@ if __name__ == '__main__':
   parser.add_argument('-P', '--password', help="Password", type=str, default="")
 
   args = parser.parse_args()
+
+  if args.calibration:
+    pp(calibration())
 
   if args.info:
     pp(info())
