@@ -47,24 +47,30 @@ python3 devtools.py -dO
 #### Networking
 *To switch the network client to use WiFi, specify a SSID/password:*
 ```
-python3 devtools.py -Wi mynetworkssid -P mynetworkpassword
+python3 device.py -Wi mynetworkssid -P mynetworkpassword
 ```
 
 *To switch the network client back to LTE:*
 ```
-python3 devtools.py -L
+python3 device.py -L
 ```
 
 *To view the WiFi SSIDs openly broadcasting to the Bee:*
 ```
-python3 devtools.py -Ws
+python3 device.py -Ws
 ```
 
 *To view WiFi status/settings:*
 ```
-python3 devtools.py -W
+python3 device.py -W
 ```
 
+
+### Calibration
+*To retrieve device-specific calibration data:*
+```
+python3 device.py -C > calibration.json
+```
 
 ## Deploy
 Use your provided plugin name and secret key to build and deploy the build artifact
