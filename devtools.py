@@ -8,7 +8,7 @@ HOST_IP = '192.168.0.10'
 HOST = f'http://{HOST_IP}:5000'
 API_ROUTE = f'{HOST}/api/1'
 DEVICE_PLUGIN_ROUTE = f'{API_ROUTE}/plugin/'
-PAUSE_UPDATES_ROUTE = DEVICE_PLUGIN_ROUTE + 'setPausePluginUpdates'
+PAUSE_UPDATES_ROUTE = DEVICE_PLUGIN_ROUTE + 'setPluginDevMode'
 
 TEMPLATE_PLUGIN_PATH = '/data/plugins/template-plugin/template-plugin'
 
