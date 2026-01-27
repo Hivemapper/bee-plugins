@@ -63,6 +63,9 @@ def list_contents(since = None, until = None):
   contents = res.json()
   return contents
 
+def cache_dir():
+  return '/data/cache'
+
 def upload_to_s3(prefix, handle, aws_bucket, aws_region, aws_secret, aws_key):
   url = f'{CACHE_ROUTE}/uploadS3/{handle}?prefix={prefix}&key={aws_key}&bucket={aws_bucket}&region={aws_region}'
   headers = {
