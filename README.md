@@ -50,6 +50,11 @@ python3 devtools.py -dO
 python3 devtools -f tokyo
 ```
 
+**Provided Fixtures**
+- `sf`
+- `tokyo`
+
+
 *To dump cache contents to local machine:*
 ```
 python3 devtools -d
