@@ -55,6 +55,10 @@ python3 devtools -f tokyo
 python3 devtools -d
 ```
 
+**Provided Fixtures**
+- `sf`
+- `tokyo`
+
 #### Networking
 *To switch the network client to use WiFi, specify a SSID/password:*
 ```
