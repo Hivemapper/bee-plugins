@@ -44,6 +44,17 @@ python3 devtools.py -R
 python3 devtools.py -dO
 ```
 
+#### Fixture Data
+*To load fixture data, specify a fixture dataset like:*
+```
+python3 devtools -f tokyo
+```
+
+*To dump cache contents to local machine:*
+```
+python3 devtools -d
+```
+
 #### Networking
 *To switch the network client to use WiFi, specify a SSID/password:*
 ```
