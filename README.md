@@ -50,14 +50,16 @@ python3 devtools.py -dO
 python3 devtools -f tokyo
 ```
 
-*To dump cache contents to local machine:*
-```
-python3 devtools -d
-```
 
 **Provided Fixtures**
 - `sf`
 - `tokyo`
+
+
+*To dump cache contents to local machine:*
+```
+python3 devtools -d
+```
 
 #### Networking
 *To switch the network client to use WiFi, specify a SSID/password:*
