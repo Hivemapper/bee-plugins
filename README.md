@@ -50,7 +50,6 @@ python3 devtools.py -dO
 python3 devtools -f tokyo
 ```
 
-
 **Provided Fixtures**
 - `sf`
 - `tokyo`
