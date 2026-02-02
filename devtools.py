@@ -7,7 +7,7 @@ from util import do_json_post
 from util.state_dump import collect_state_dump
 from scp import SCPClient
 
-HOST_IP = '192.168.0.10'
+HOST_IP = '192.168.197.55'
 HOST = f'http://{HOST_IP}:5000'
 API_ROUTE = f'{HOST}/api/1'
 DEVICE_PLUGIN_ROUTE = f'{API_ROUTE}/plugin/'

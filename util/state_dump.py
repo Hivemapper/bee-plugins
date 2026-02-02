@@ -1,19 +1,18 @@
-import os
 import json
-import time
 import zipfile
 import requests
 import paramiko
-from scp import SCPClient
 import shutil
+from pathlib import Path
+from scp import SCPClient
 from datetime import datetime
 from tqdm import tqdm
 
 def collect_state_dump(host_ip):
     timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-    dump_dir = f'state_dump_{timestamp}'
-    api_dir = os.path.join(dump_dir, 'api')
-    os.makedirs(api_dir, exist_ok=True)
+    dump_dir = Path(f'state_dump_{timestamp}')
+    api_dir = dump_dir / 'api'
+    api_dir.mkdir(parents=True, exist_ok=True)
     
     results = {
         "api_endpoints": {},
@@ -60,13 +59,13 @@ def collect_state_dump(host_ip):
                 # PHASE: api fetch
                 pbar.set_postfix_str("api fetch")
                 for endpoint in endpoints:
-                    filename = endpoint.split('/')[-1] + '.json'
+                    filename = f"{endpoint.split('/')[-1]}.json"
                     url = f'http://{host_ip}:5000{endpoint}'
                     try:
                         response = requests.get(url, timeout=10)
                         if response.status_code == 200:
-                            with open(os.path.join(api_dir, filename), 'w') as f:
-                                json.dump(response.json(), f, indent=2)
+                            json_path = api_dir / filename
+                            json_path.write_text(json.dumps(response.json(), indent=2))
                             results["api_endpoints"][endpoint] = "success"
                         else:
                             results["api_endpoints"][endpoint] = f"failed (status code: {response.status_code})"
@@ -79,12 +78,15 @@ def collect_state_dump(host_ip):
                     for remote_file in all_remote_files:
                         pbar.set_postfix_str("file transfer")
                         
-                        dest_path = os.path.join(dump_dir, os.path.basename(remote_file))
-                        if os.path.exists(dest_path):
-                            dest_path = os.path.join(dump_dir, f"{os.path.basename(os.path.dirname(remote_file))}_{os.path.basename(remote_file)}")
+                        remote_path_obj = Path(remote_file)
+                        dest_path = dump_dir / remote_path_obj.name
+                        
+                        if dest_path.exists():
+                            # If file exists, prefix with parent directory name to avoid collision
+                            dest_path = dump_dir / f"{remote_path_obj.parent.name}_{remote_path_obj.name}"
                         
                         try:
-                            scp.get(remote_file, local_path=dest_path)
+                            scp.get(remote_file, local_path=str(dest_path))
                             results["files"][remote_file] = "success"
                         except Exception as e:
                             results["files"][remote_file] = f"failed (error: {str(e)})"
@@ -92,24 +94,22 @@ def collect_state_dump(host_ip):
 
                 # Save results.json
                 pbar.set_postfix_str("saving summary")
-                with open(os.path.join(dump_dir, 'results.json'), 'w') as f:
-                    json.dump(results, f, indent=2)
+                results_path = dump_dir / 'results.json'
+                results_path.write_text(json.dumps(results, indent=2))
                 pbar.update(1)
 
                 # PHASE: archive
                 pbar.set_postfix_str("archive")
                 zip_filename = f'state-dump-{timestamp}.zip'
-                archive_name = f'state-dump-{timestamp}'
+                archive_name = Path(f'state-dump-{timestamp}')
                 try:
                     with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                        for root, dirs, files in os.walk(dump_dir):
-                            for file in files:
-                                # Full path to the file
-                                file_path = os.path.join(root, file)
-                                # Relative path within dump_dir (keeps subdirectories like api/)
-                                rel_path = os.path.relpath(file_path, dump_dir)
+                        for file_path in dump_dir.rglob('*'):
+                            if file_path.is_file():
+                                rel_path = file_path.relative_to(dump_dir)
                                 # Write file into the zip with a prefix directory
-                                zipf.write(file_path, arcname=os.path.join(archive_name, rel_path))
+                                zipf.write(file_path, arcname=str(archive_name / rel_path))
+                    
                     results["archive"] = "success"
                     pbar.update(1)
                     pbar.set_postfix_str("complete")
