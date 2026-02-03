@@ -61,7 +61,7 @@ python3 devtools -d
 ```
 
 #### State dump
-*To dump the device state to a zip file:*
+*To dump the device logs and state to a zip file:*
 ```
 python3 devtools -sd
 ```
