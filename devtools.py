@@ -5,9 +5,10 @@ import paramiko
 
 from util import do_json_post
 from util.state_dump import collect_state_dump
+from util.observation_dump import collect_observation_dump
 from scp import SCPClient
 
-HOST_IP = '192.168.0.10'
+HOST_IP = '192.168.197.55'
 HOST = f'http://{HOST_IP}:5000'
 API_ROUTE = f'{HOST}/api/1'
 DEVICE_PLUGIN_ROUTE = f'{API_ROUTE}/plugin/'
@@ -81,6 +82,7 @@ if __name__ == '__main__':
   parser.add_argument('-f', '--populate_fixture', help="Populate fixture data", type=str)
   parser.add_argument('-d', '--dump_cache', help='Copy cache contents to local machine', action='store_true')
   parser.add_argument('-sd', '--state_dump', help='Collect state dump from device', action='store_true')
+  parser.add_argument('-co', '--cached-observations', help='Collect cached observation dump from device', action='store_true')
 
   args = parser.parse_args()
 
@@ -113,3 +115,8 @@ if __name__ == '__main__':
     zip_filename = collect_state_dump(HOST_IP)
     if zip_filename:
       print(f"Created state dump {zip_filename}")
+
+  if args.cached_observations:
+    zip_filename = collect_observation_dump(HOST_IP)
+    if zip_filename:
+      print(f"Created cached observation dump {zip_filename}")

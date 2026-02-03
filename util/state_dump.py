@@ -43,7 +43,7 @@ def collect_state_dump(host_ip):
     try:
         with paramiko.SSHClient() as ssh:
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(host_ip, username='root', password="", look_for_keys=False, allow_agent=False)
+            ssh.connect(host_ip, username='root', password="", look_for_keys=False, allow_agent=False, timeout=10)
             results["ssh_connection"] = "success"
             
             # Find all files first to set progress bar total
