@@ -4,6 +4,7 @@ import os
 import paramiko
 
 from util import do_json_post
+from util.state_dump import collect_state_dump
 from scp import SCPClient
 
 HOST_IP = '192.168.0.10'
@@ -79,6 +80,7 @@ if __name__ == '__main__':
   parser.add_argument('-R', '--restart_plugin', help="Restart plugin", action='store_true')
   parser.add_argument('-f', '--populate_fixture', help="Populate fixture data", type=str)
   parser.add_argument('-d', '--dump_cache', help='Copy cache contents to local machine', action='store_true')
+  parser.add_argument('-sd', '--state_dump', help='Collect state dump from device', action='store_true')
 
   args = parser.parse_args()
 
@@ -106,3 +108,8 @@ if __name__ == '__main__':
 
   if args.dump_cache:
     dump_cache()
+
+  if args.state_dump:
+    zip_filename = collect_state_dump(HOST_IP)
+    if zip_filename:
+      print(f"Created state dump {zip_filename}")
