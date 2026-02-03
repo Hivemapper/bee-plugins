@@ -78,12 +78,15 @@ def collect_state_dump(host_ip):
                     for remote_file in all_remote_files:
                         pbar.set_postfix_str("file transfer")
                         
-                        remote_path_obj = Path(remote_file)
-                        dest_path = dump_dir / remote_path_obj.name
+                        # Mirror the remote directory structure
+                        # remote_file is like '/data/recording/odc-api.log'
+                        # We want it to be 'dump_dir/data/recording/odc-api.log'
+                        # Path(remote_file).relative_to('/') gives us 'data/recording/odc-api.log'
+                        rel_remote_path = Path(remote_file).relative_to('/')
+                        dest_path = dump_dir / rel_remote_path
                         
-                        if dest_path.exists():
-                            # If file exists, prefix with parent directory name to avoid collision
-                            dest_path = dump_dir / f"{remote_path_obj.parent.name}_{remote_path_obj.name}"
+                        # Ensure the local subdirectory exists
+                        dest_path.parent.mkdir(parents=True, exist_ok=True)
                         
                         try:
                             scp.get(remote_file, local_path=str(dest_path))
@@ -104,6 +107,7 @@ def collect_state_dump(host_ip):
                 archive_name = Path(f'state-dump-{timestamp}')
                 try:
                     with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                        # rglob('*') will iterate through all files and directories
                         for file_path in dump_dir.rglob('*'):
                             if file_path.is_file():
                                 rel_path = file_path.relative_to(dump_dir)
