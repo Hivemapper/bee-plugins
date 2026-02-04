@@ -54,6 +54,21 @@ def plugin_info(plugin_name):
 
   return res.json()
 
+def add_plugin_to_user(plugin_name, plugin_secret):
+  config_url = f'http://127.0.0.1:5000/api/1/config'
+  config_res = requests.get(config_url)
+  if config_res.status_code != 200:
+    raise Exception(config_res.json())
+  config_json = config_res.json()
+  cookie = config_json.get("connect.sid")
+  if not cookie or cookie == "":
+    raise Exception("Invalid cookie")
+  url = f'https://beemaps.com/api/plugins/addPluginToUser/{plugin_name}?secret={plugin_secret}'
+  res = requests.get(url, cookies={"connect.sid": cookie})
+  if res.status_code != 200:
+    raise Exception(res.json())
+  return res.json()
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description="Upload and deploy bee plugins.")
 
