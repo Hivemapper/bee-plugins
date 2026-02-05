@@ -44,6 +44,55 @@ python3 devtools.py -R
 python3 devtools.py -dO
 ```
 
+#### Fixture Data
+*To load fixture data, specify a fixture dataset like:*
+```
+python3 devtools -f tokyo
+```
+
+**Provided Fixtures**
+- `sf`
+- `tokyo`
+
+
+*To dump cache contents to local machine:*
+```
+python3 devtools -d
+```
+
+#### State dump
+*To dump the device logs and state to a zip file:*
+```
+python3 devtools -sd
+```
+
+#### Networking
+*To switch the network client to use WiFi, specify a SSID/password:*
+```
+python3 device.py -Wi mynetworkssid -P mynetworkpassword
+```
+
+*To switch the network client back to LTE:*
+```
+python3 device.py -L
+```
+
+*To view the WiFi SSIDs openly broadcasting to the Bee:*
+```
+python3 device.py -Ws
+```
+
+*To view WiFi status/settings:*
+```
+python3 device.py -W
+```
+
+
+### Calibration
+*To retrieve device-specific calibration data:*
+```
+python3 device.py -C > calibration.json
+```
 
 ## Deploy
 Use your provided plugin name and secret key to build and deploy the build artifact
