@@ -10,6 +10,7 @@ AWS_SECRET = 'IaMaSeCrEt'
 AWS_KEY = 'iAmAkEy'
 
 CAPTURE_STEREO = False
+ENCODE_EXIF = False
 LOOP_DELAY = 5
 UPLOAD_THREADS = 1
 VERBOSE = True
@@ -27,6 +28,9 @@ def _setup(state):
     beeutil.enable_stereo_collection()
 
   state['session'] = str(uuid.uuid1())
+
+  if ENCODE_EXIF:
+    state['exif_encoder'] = beeutil.BatchEXIFWriter(beeutil.cache_dir(), VERBOSE)
 
   vlog(f'initializing {UPLOAD_THREADS} upload workers')
   state['uploadQueue'] = queue.Queue()
@@ -49,6 +53,17 @@ def _loop(state):
   vlog(f'since {state["last_checked"]}:')
   vlog(contents)
 
+  if ENCODE_EXIF:
+    for handle in [c for c in contents if c.endswith('.json')]:
+      fid = handle.split('.')[0]
+      tags = beeutil.metadata_to_exif_tags(handle)      
+      state['exif_encoder'].add(f'{fid}.jpg', tags)
+
+    try:
+      state['exif_encoder'].flush()
+    except Exception as e:
+      vlog(e)
+
   for handle in contents:
     state['uploadQueue'].put(handle)
 
@@ -56,6 +71,7 @@ def _loop(state):
 
 def main():
   state = {
+    'exif_encoder': None,
     'last_checked': None,
     'session': '',
     'threads': None,
