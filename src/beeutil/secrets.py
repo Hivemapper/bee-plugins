@@ -259,23 +259,145 @@ def fetch_plugin_secrets(plugin_name: str, api_base: str = 'https://beemaps.com'
     return (plugin_id, encrypted_blob)
 
 
-def load_secrets(plugin_name: str, api_base: str = 'https://beemaps.com') -> dict:
+# =============================================================================
+# Local Development Support
+# =============================================================================
+
+# Environment variable names for local development
+ENV_AWS_KEY = 'PLUGIN_AWS_KEY'
+ENV_AWS_SECRET = 'PLUGIN_AWS_SECRET'
+ENV_AWS_BUCKET = 'PLUGIN_AWS_BUCKET'
+ENV_AWS_REGION = 'PLUGIN_AWS_REGION'
+
+# Default config file path (relative to plugin directory)
+DEFAULT_CONFIG_FILE = 'secrets.json'
+
+
+def load_secrets_from_env() -> dict:
     """
-    Convenience function: fetch from API, decrypt, cache, and return secrets.
+    Load secrets from environment variables.
     
-    First call fetches and decrypts; subsequent calls return cached value.
+    Environment variables:
+        PLUGIN_AWS_KEY: AWS access key ID
+        PLUGIN_AWS_SECRET: AWS secret access key
+        PLUGIN_AWS_BUCKET: S3 bucket name
+        PLUGIN_AWS_REGION: AWS region
+        
+    Returns:
+        Secrets dictionary if all env vars are set, None otherwise
+    """
+    aws_key = os.environ.get(ENV_AWS_KEY)
+    aws_secret = os.environ.get(ENV_AWS_SECRET)
+    aws_bucket = os.environ.get(ENV_AWS_BUCKET)
+    aws_region = os.environ.get(ENV_AWS_REGION)
+    
+    if all([aws_key, aws_secret, aws_bucket, aws_region]):
+        return {
+            'aws_key': aws_key,
+            'aws_secret': aws_secret,
+            'aws_bucket': aws_bucket,
+            'aws_region': aws_region
+        }
+    
+    return None
+
+
+def load_secrets_from_config(config_path: str = None) -> dict:
+    """
+    Load secrets from a local JSON config file.
     
     Args:
-        plugin_name: The plugin's name
+        config_path: Path to config file (default: 'secrets.json' in current directory)
+        
+    Returns:
+        Secrets dictionary if file exists and is valid, None otherwise
+        
+    Expected file format:
+        {
+            "aws_key": "...",
+            "aws_secret": "...",
+            "aws_bucket": "...",
+            "aws_region": "..."
+        }
+    """
+    if config_path is None:
+        config_path = DEFAULT_CONFIG_FILE
+    
+    if not os.path.exists(config_path):
+        return None
+    
+    try:
+        with open(config_path, 'r') as f:
+            secrets = json.load(f)
+        
+        # Validate required keys
+        validate_secrets(secrets)
+        return secrets
+        
+    except (json.JSONDecodeError, SecretsValidationError):
+        return None
+
+
+def load_secrets(
+    plugin_name: str = None,
+    api_base: str = 'https://beemaps.com',
+    config_path: str = None,
+    use_local: bool = True
+) -> dict:
+    """
+    Load secrets with automatic fallback for local development.
+    
+    Priority order:
+    1. Environment variables (if use_local=True)
+    2. Local config file (if use_local=True)
+    3. Encrypted secrets from Hivemapper API
+    
+    For local development, set environment variables or create a secrets.json file.
+    For production deployment, secrets are fetched and decrypted from the API.
+    
+    Args:
+        plugin_name: The plugin's name (required for API fetch, optional for local)
         api_base: Base URL for API (default: https://beemaps.com)
+        config_path: Path to local config file (default: 'secrets.json')
+        use_local: If True, try local sources (env vars, config file) before API
         
     Returns:
         Decrypted and validated secrets dictionary
+        
+    Raises:
+        SecretsError: If no secrets source is available
     """
     global _secrets_cache
     
+    # Return cached secrets if available
     if _secrets_cache is not None:
         return _secrets_cache
     
+    # Try local sources first (for development)
+    if use_local:
+        # Try environment variables
+        secrets = load_secrets_from_env()
+        if secrets:
+            _secrets_cache = secrets
+            return _secrets_cache
+        
+        # Try local config file
+        secrets = load_secrets_from_config(config_path)
+        if secrets:
+            _secrets_cache = secrets
+            return _secrets_cache
+    
+    # Fall back to API (for production)
+    if plugin_name is None:
+        raise SecretsError(
+            "No local secrets found and plugin_name not provided. "
+            "Either set environment variables (PLUGIN_AWS_KEY, etc.), "
+            "create a secrets.json file, or provide plugin_name for API fetch."
+        )
+    
     plugin_id, encrypted_blob = fetch_plugin_secrets(plugin_name, api_base)
-    return get_secrets(plugin_id, encrypted_blob)
+    _secrets_cache = decrypt_secrets(plugin_id, encrypted_blob)
+    validate_secrets(_secrets_cache)
+    
+    return _secrets_cache
+

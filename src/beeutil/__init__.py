@@ -2,6 +2,7 @@ from .image_cache import image_cache_status, enable_image_collection, disable_im
 from .secrets import (
     encrypt_secrets, decrypt_secrets, validate_secrets,
     get_secrets, load_secrets, fetch_plugin_secrets, clear_secrets_cache,
+    load_secrets_from_env, load_secrets_from_config,
     SecretsError, DecryptionError, SecretsValidationError, SecretsNetworkError, SecretsNotFoundError
 )
 
@@ -13,5 +14,7 @@ __all__ = [
     # Secrets
     'encrypt_secrets', 'decrypt_secrets', 'validate_secrets',
     'get_secrets', 'load_secrets', 'fetch_plugin_secrets', 'clear_secrets_cache',
+    'load_secrets_from_env', 'load_secrets_from_config',
     'SecretsError', 'DecryptionError', 'SecretsValidationError', 'SecretsNetworkError', 'SecretsNotFoundError'
 ]
+
