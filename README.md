@@ -94,6 +94,90 @@ python3 device.py -W
 python3 device.py -C > calibration.json
 ```
 
+## Encrypted Secrets
+
+Plugins can securely load AWS credentials at runtime instead of hardcoding them in source code.
+
+### Usage in your plugin
+
+```python
+import beeutil
+
+def _setup(state):
+    # Load secrets once per session (cached automatically)
+    # Tries: env vars → secrets.json → API (in that order)
+    secrets = beeutil.load_secrets(plugin_name='your-plugin-name')
+    
+    # Use the credentials
+    aws_key = secrets['aws_key']
+    aws_secret = secrets['aws_secret']
+    aws_bucket = secrets['aws_bucket']
+    aws_region = secrets['aws_region']
+```
+
+### Local Development (Option 1: Environment Variables)
+
+For local testing, set these environment variables:
+
+```bash
+export PLUGIN_AWS_KEY="AKIAIOSFODNN7EXAMPLE"
+export PLUGIN_AWS_SECRET="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+export PLUGIN_AWS_BUCKET="my-bucket"
+export PLUGIN_AWS_REGION="us-west-2"
+```
+
+Then in your plugin:
+```python
+# No plugin_name needed when using env vars
+secrets = beeutil.load_secrets()
+```
+
+### Local Development (Option 2: Config File)
+
+Create a `secrets.json` file in your plugin directory:
+
+```json
+{
+    "aws_key": "AKIAIOSFODNN7EXAMPLE",
+    "aws_secret": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    "aws_bucket": "my-bucket",
+    "aws_region": "us-west-2"
+}
+```
+
+**Important:** Add `secrets.json` to `.gitignore` to avoid committing credentials!
+
+### Production Deployment
+
+For production, secrets are encrypted and stored in Hivemapper backend:
+
+1. **Developer encrypts secrets** using the plugin `_id` as the encryption key
+2. **Encrypted blob is stored** in Hivemapper backend (TODO: API route)
+3. **Device fetches and decrypts** at runtime
+
+```python
+from beeutil import encrypt_secrets
+
+plugin_id = "your-plugin-mongodb-id"
+secrets = {
+    "aws_key": "AKIAIOSFODNN7EXAMPLE",
+    "aws_secret": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    "aws_bucket": "my-bucket",
+    "aws_region": "us-west-2"
+}
+
+encrypted_blob = encrypt_secrets(plugin_id, secrets)
+print(encrypted_blob)  # Upload this to Hivemapper backend
+```
+
+### Technical details
+
+- **Algorithm**: AES-256-CBC with PKCS7 padding
+- **Key derivation**: PBKDF2-HMAC-SHA256 (100k iterations)
+- **Library**: Uses `cryptography` (pre-installed on device)
+- **Priority**: Environment variables → `secrets.json` → API
+
+
 ## Deploy
 Use your provided plugin name and secret key to build and deploy the build artifact
 ```
