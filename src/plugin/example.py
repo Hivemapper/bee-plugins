@@ -4,10 +4,8 @@ import threading
 import time
 import uuid
 
-AWS_BUCKET = 'your_bucket'
-AWS_REGION = 'your-aws-region'
-AWS_SECRET = 'IaMaSeCrEt'
-AWS_KEY = 'iAmAkEy'
+# Plugin configuration
+PLUGIN_NAME = 'your-plugin-name'  # Set this to your plugin name
 
 CAPTURE_STEREO = False
 LOOP_DELAY = 5
@@ -28,13 +26,30 @@ def _setup(state):
 
   state['session'] = str(uuid.uuid1())
 
+  # Load encrypted secrets from API (cached for session)
+  vlog('loading encrypted secrets from API')
+  try:
+    state['secrets'] = beeutil.load_secrets(PLUGIN_NAME)
+    vlog('secrets loaded successfully')
+  except beeutil.SecretsError as e:
+    vlog(f'ERROR: Failed to load secrets: {e}')
+    raise
+
   vlog(f'initializing {UPLOAD_THREADS} upload workers')
   state['uploadQueue'] = queue.Queue()
 
   def upload_worker():
+    secrets = state['secrets']
     while True:
       handle = state['uploadQueue'].get()
-      beeutil.upload_to_s3(state['session'], handle, BUCKET, REGION, AWS_SECRET, AWS_KEY)
+      beeutil.upload_to_s3(
+        state['session'],
+        handle,
+        secrets['aws_bucket'],
+        secrets['aws_region'],
+        secrets['aws_secret'],
+        secrets['aws_key']
+      )
 
   state['threads'] = [threading.Thread(target=upload_worker, daemon=True).start() for i in range(UPLOAD_THREADS)]
   state['uploadQueue'] = queue.Queue()
