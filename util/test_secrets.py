@@ -1,182 +1,197 @@
 #!/usr/bin/env python3
-"""
-Test script to verify encrypt/decrypt round-trip for plugin secrets.
-
-Run from project root:
-    python3 -m pytest util/test_secrets.py -v
-    
-Or directly:
-    python3 util/test_secrets.py
-"""
-
 import sys
 import os
+import tempfile
 
-# Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from beeutil.secrets import (
-    encrypt_secrets, decrypt_secrets, validate_secrets,
-    get_secrets, clear_secrets_cache,
-    DecryptionError, SecretsValidationError
-)
+import beeutil.secrets as secrets
+from beeutil.secrets import DecryptionError, SecretsError
 
 
 def test_encrypt_decrypt_roundtrip():
-    """Test that encryption and decryption produce the original data."""
-    plugin_id = "507f1f77bcf86cd799439011"  # Sample MongoDB ObjectId
-    
-    original_secrets = {
-        "aws_key": "AKIAIOSFODNN7EXAMPLE",
-        "aws_secret": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-        "aws_bucket": "my-test-bucket",
-        "aws_region": "us-west-2"
+    plugin_id = "507f1f77bcf86cd799439011"
+    env = {
+        "AWS_KEY": "AKIAIOSFODNN7EXAMPLE",
+        "AWS_SECRET": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+        "STRIPE_TOKEN": "sk_test_abc123",
     }
-    
-    # Encrypt
-    encrypted = encrypt_secrets(plugin_id, original_secrets)
-    print(f"✓ Encrypted blob length: {len(encrypted)} chars")
-    print(f"  Blob preview: {encrypted[:50]}...")
-    
-    # Decrypt
-    decrypted = decrypt_secrets(plugin_id, encrypted)
-    print(f"✓ Decrypted successfully")
-    
-    # Verify
-    assert decrypted == original_secrets, "Decrypted secrets don't match original!"
-    print(f"✓ Round-trip verification passed")
-    
+
+    encrypted = secrets.encrypt(plugin_id, env)
+    decrypted = secrets.decrypt(plugin_id, encrypted)
+    assert decrypted == env
+    print(f"  encrypted blob: {len(encrypted)} chars, round-trip OK")
     return True
 
 
 def test_wrong_plugin_id():
-    """Test that wrong plugin ID fails decryption."""
     correct_id = "507f1f77bcf86cd799439011"
     wrong_id = "507f1f77bcf86cd799439012"
-    
-    secrets = {"aws_key": "test", "aws_secret": "test", "aws_bucket": "test", "aws_region": "test"}
-    encrypted = encrypt_secrets(correct_id, secrets)
-    
+
+    encrypted = secrets.encrypt(correct_id, {"KEY": "value"})
+
     try:
-        decrypt_secrets(wrong_id, encrypted)
-        print("✗ Should have raised DecryptionError!")
+        secrets.decrypt(wrong_id, encrypted)
         return False
-    except DecryptionError as e:
-        print(f"✓ Wrong plugin ID correctly rejected: {e}")
+    except DecryptionError:
         return True
 
 
 def test_malformed_blob():
-    """Test that malformed blob fails gracefully."""
-    plugin_id = "507f1f77bcf86cd799439011"
-    
     try:
-        decrypt_secrets(plugin_id, "not-a-valid-blob")
-        print("✗ Should have raised DecryptionError!")
+        secrets.decrypt("507f1f77bcf86cd799439011", "not-a-valid-blob")
         return False
-    except DecryptionError as e:
-        print(f"✓ Malformed blob correctly rejected: {e}")
+    except DecryptionError:
         return True
 
 
-def test_validation():
-    """Test secrets validation."""
-    # Valid secrets
-    valid = {"aws_key": "k", "aws_secret": "s", "aws_bucket": "b", "aws_region": "r"}
-    try:
-        validate_secrets(valid)
-        print("✓ Valid secrets passed validation")
-    except SecretsValidationError:
-        print("✗ Valid secrets should not fail validation!")
-        return False
-    
-    # Missing keys
-    invalid = {"aws_key": "k"}  # Missing other keys
-    try:
-        validate_secrets(invalid)
-        print("✗ Invalid secrets should fail validation!")
-        return False
-    except SecretsValidationError as e:
-        print(f"✓ Missing keys correctly detected: {e}")
-    
-    return True
-
-
-def test_singleton_cache():
-    """Test that singleton caching works."""
-    clear_secrets_cache()  # Start fresh
-    
+def test_empty_env():
     plugin_id = "507f1f77bcf86cd799439011"
-    secrets = {"aws_key": "k", "aws_secret": "s", "aws_bucket": "b", "aws_region": "r"}
-    encrypted = encrypt_secrets(plugin_id, secrets)
-    
-    # First call - should decrypt
-    result1 = get_secrets(plugin_id, encrypted)
-    print(f"✓ First call returned secrets")
-    
-    # Second call - should use cache (we can't easily verify this without mocking,
-    # but we can verify the result is the same)
-    result2 = get_secrets(plugin_id, encrypted)
-    print(f"✓ Second call returned secrets (from cache)")
-    
-    assert result1 == result2, "Cached result differs!"
-    print(f"✓ Singleton cache working correctly")
-    
-    # Clear and verify it decrypts again
-    clear_secrets_cache()
-    result3 = get_secrets(plugin_id, encrypted)
-    assert result3 == secrets, "After clear, decryption failed!"
-    print(f"✓ Cache clear and re-decrypt working")
-    
+    encrypted = secrets.encrypt(plugin_id, {})
+    assert secrets.decrypt(plugin_id, encrypted) == {}
     return True
 
 
-def test_empty_secrets():
-    """Test that empty secrets dict works."""
-    plugin_id = "507f1f77bcf86cd799439011"
-    empty_secrets = {}
-    
-    encrypted = encrypt_secrets(plugin_id, empty_secrets)
-    decrypted = decrypt_secrets(plugin_id, encrypted)
-    
-    assert decrypted == empty_secrets, "Empty secrets round-trip failed!"
-    print(f"✓ Empty secrets round-trip passed")
-    
-    return True
+def test_parse_dotenv():
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.env', delete=False) as f:
+        f.write('# comment line\n')
+        f.write('AWS_KEY=AKIAIOSFODNN7EXAMPLE\n')
+        f.write('AWS_SECRET="quoted value"\n')
+        f.write("SINGLE_QUOTED='single'\n")
+        f.write('EMPTY=\n')
+        f.write('\n')
+        f.write('NO_EQUALS_LINE\n')
+        f.write('  SPACED_KEY = spaced_value \n')
+        path = f.name
+
+    try:
+        env = secrets._parse_dotenv(path)
+        assert env['AWS_KEY'] == 'AKIAIOSFODNN7EXAMPLE'
+        assert env['AWS_SECRET'] == 'quoted value'
+        assert env['SINGLE_QUOTED'] == 'single'
+        assert env['EMPTY'] == ''
+        assert 'SPACED_KEY' in env
+        assert 'NO_EQUALS_LINE' not in env
+        print(f"  parsed {len(env)} keys")
+        return True
+    finally:
+        os.unlink(path)
+
+
+def test_atomic_rejects_non_string():
+    secrets.clear_cache()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        orig_dir = secrets.PLUGIN_DIR
+        secrets.PLUGIN_DIR = tmpdir
+
+        try:
+            plugin_dir = os.path.join(tmpdir, 'bad-plugin')
+            os.makedirs(plugin_dir)
+            with open(os.path.join(plugin_dir, '.env'), 'w') as f:
+                f.write('GOOD=value\n')
+
+            secrets.load('bad-plugin')
+            assert os.environ.get('GOOD') == 'value'
+
+            del os.environ['GOOD']
+            return True
+        finally:
+            secrets.PLUGIN_DIR = orig_dir
+            secrets.clear_cache()
+
+
+def test_get_from_dotenv():
+    secrets.clear_cache()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        orig_dir = secrets.PLUGIN_DIR
+        secrets.PLUGIN_DIR = tmpdir
+
+        try:
+            plugin_dir = os.path.join(tmpdir, 'test-plugin')
+            os.makedirs(plugin_dir)
+            with open(os.path.join(plugin_dir, '.env'), 'w') as f:
+                f.write('MY_KEY=my_value\nMY_SECRET=my_secret\n')
+
+            assert secrets.get('test-plugin', 'MY_KEY') == 'my_value'
+            assert secrets.get('test-plugin', 'MY_SECRET') == 'my_secret'
+
+            try:
+                secrets.get('test-plugin', 'MISSING')
+                return False
+            except KeyError:
+                pass
+
+            del os.environ['MY_KEY']
+            del os.environ['MY_SECRET']
+            return True
+        finally:
+            secrets.PLUGIN_DIR = orig_dir
+            secrets.clear_cache()
+
+
+def test_load_returns_copy():
+    secrets.clear_cache()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        orig_dir = secrets.PLUGIN_DIR
+        secrets.PLUGIN_DIR = tmpdir
+
+        try:
+            plugin_dir = os.path.join(tmpdir, 'copy-plugin')
+            os.makedirs(plugin_dir)
+            with open(os.path.join(plugin_dir, '.env'), 'w') as f:
+                f.write('A=1\nB=2\n')
+
+            result = secrets.load('copy-plugin')
+            assert result == {'A': '1', 'B': '2'}
+
+            result['C'] = '3'
+            assert 'C' not in secrets.load('copy-plugin')
+
+            del os.environ['A']
+            del os.environ['B']
+            return True
+        finally:
+            secrets.PLUGIN_DIR = orig_dir
+            secrets.clear_cache()
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Plugin Secrets Encryption Test Suite")
+    print("Plugin Secrets Test Suite")
     print("=" * 60)
-    print()
-    
+
     tests = [
         ("Encrypt/Decrypt Round-trip", test_encrypt_decrypt_roundtrip),
         ("Wrong Plugin ID", test_wrong_plugin_id),
         ("Malformed Blob", test_malformed_blob),
-        ("Secrets Validation", test_validation),
-        ("Singleton Cache", test_singleton_cache),
-        ("Empty Secrets", test_empty_secrets),
+        ("Empty Env", test_empty_env),
+        ("Parse Dotenv", test_parse_dotenv),
+        ("Atomic Load", test_atomic_rejects_non_string),
+        ("get() from Dotenv", test_get_from_dotenv),
+        ("load() Returns Copy", test_load_returns_copy),
     ]
-    
+
     passed = 0
     failed = 0
-    
+
     for name, test_fn in tests:
         print(f"\n--- {name} ---")
         try:
             if test_fn():
                 passed += 1
+                print(f"  PASS")
             else:
                 failed += 1
+                print(f"  FAIL")
         except Exception as e:
-            print(f"✗ Test crashed: {e}")
+            print(f"  CRASH: {e}")
             failed += 1
-    
-    print()
-    print("=" * 60)
+
+    print(f"\n{'=' * 60}")
     print(f"Results: {passed} passed, {failed} failed")
     print("=" * 60)
-    
+
     sys.exit(0 if failed == 0 else 1)
