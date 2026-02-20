@@ -96,7 +96,7 @@ python3 device.py -C > calibration.json
 
 ## Encrypted Secrets
 
-Plugins can securely load AWS credentials at runtime instead of hardcoding them in source code.
+Plugins can securely load arbitrary environment variables at runtime instead of hardcoding credentials in source code. Keys are not restricted — any string key-value pairs work.
 
 ### Usage in your plugin
 
@@ -104,78 +104,55 @@ Plugins can securely load AWS credentials at runtime instead of hardcoding them 
 import beeutil
 
 def _setup(state):
-    # Load secrets once per session (cached automatically)
-    # Tries: env vars → secrets.json → API (in that order)
-    secrets = beeutil.load_secrets(plugin_name='your-plugin-name')
-    
-    # Use the credentials
-    aws_key = secrets['aws_key']
-    aws_secret = secrets['aws_secret']
-    aws_bucket = secrets['aws_bucket']
-    aws_region = secrets['aws_region']
+    # Load all secrets (cached after first call)
+    # Tries: .env file → Hivemapper API via ODC (in that order)
+    env = beeutil.load('my-plugin')
+    bucket = env['AWS_BUCKET']
+
+    # Or get a single key
+    bucket = beeutil.get('my-plugin', 'AWS_BUCKET')
 ```
 
-### Local Development (Option 1: Environment Variables)
+### Local Development (.env file)
 
-For local testing, set these environment variables:
-
+Create `/data/plugins/<plugin-name>/.env` on the device, or push via devtools:
 ```bash
-export PLUGIN_AWS_KEY="AKIAIOSFODNN7EXAMPLE"
-export PLUGIN_AWS_SECRET="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-export PLUGIN_AWS_BUCKET="my-bucket"
-export PLUGIN_AWS_REGION="us-west-2"
+python3 devtools.py -e path/to/.env
 ```
 
-Then in your plugin:
-```python
-# No plugin_name needed when using env vars
-secrets = beeutil.load_secrets()
+Example `.env`:
+```
+AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+AWS_BUCKET=my-bucket
+AWS_REGION=us-west-2
+MY_CUSTOM_KEY=whatever
 ```
 
-### Local Development (Option 2: Config File)
+### Production (encrypt + upload to Hivemapper backend)
 
-Create a `secrets.json` file in your plugin directory:
-
-```json
-{
-    "aws_key": "AKIAIOSFODNN7EXAMPLE",
-    "aws_secret": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-    "aws_bucket": "my-bucket",
-    "aws_region": "us-west-2"
-}
+Use the provided upload script:
+```bash
+python3 util/upload_secrets.py \
+    --plugin-name my-plugin \
+    --plugin-secret <plugin-api-key> \
+    --env-file .env
 ```
 
-**Important:** Add `secrets.json` to `.gitignore` to avoid committing credentials!
+This will:
+1. Parse the `.env` file into key-value pairs
+2. Fetch the plugin's `_id` from the Hivemapper backend
+3. Encrypt the KV pairs using `_id` as key material (PBKDF2 + AES-256-CBC)
+4. Upload the encrypted blob via `PUT /plugins/:name/secrets`
 
-### Production Deployment
-
-For production, secrets are encrypted and stored in Hivemapper backend:
-
-1. **Developer encrypts secrets** using the plugin `_id` as the encryption key
-2. **Encrypted blob is stored** in Hivemapper backend (TODO: API route)
-3. **Device fetches and decrypts** at runtime
-
-```python
-from beeutil import encrypt_secrets
-
-plugin_id = "your-plugin-mongodb-id"
-secrets = {
-    "aws_key": "AKIAIOSFODNN7EXAMPLE",
-    "aws_secret": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-    "aws_bucket": "my-bucket",
-    "aws_region": "us-west-2"
-}
-
-encrypted_blob = encrypt_secrets(plugin_id, secrets)
-print(encrypted_blob)  # Upload this to Hivemapper backend
-```
+The device fetches and decrypts at runtime via ODC API. Use `--dry-run` to encrypt without uploading.
 
 ### Technical details
 
 - **Algorithm**: AES-256-CBC with PKCS7 padding
-- **Key derivation**: PBKDF2-HMAC-SHA256 (100k iterations)
+- **Key derivation**: PBKDF2-HMAC-SHA256 (100k iterations, salt: `hivemapper-plugin-secrets`)
 - **Library**: Uses `cryptography` (pre-installed on device)
-- **Priority**: Environment variables → `secrets.json` → API
+- **Loading priority**: `.env` file → Hivemapper API (via ODC)
 
 
 ## Deploy
