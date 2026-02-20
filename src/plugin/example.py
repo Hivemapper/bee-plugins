@@ -27,7 +27,7 @@ def _setup(state):
 
   vlog('loading env')
   try:
-    beeutil.load(PLUGIN_NAME)
+    beeutil.secrets.load(PLUGIN_NAME)
     vlog('env loaded')
   except beeutil.SecretsError as e:
     vlog(f'ERROR: Failed to load env: {e}')
@@ -42,10 +42,10 @@ def _setup(state):
       beeutil.upload_to_s3(
         state['session'],
         handle,
-        beeutil.get(PLUGIN_NAME, 'AWS_BUCKET'),
-        beeutil.get(PLUGIN_NAME, 'AWS_REGION'),
-        beeutil.get(PLUGIN_NAME, 'AWS_SECRET'),
-        beeutil.get(PLUGIN_NAME, 'AWS_KEY'),
+        beeutil.secrets.get(PLUGIN_NAME, 'AWS_BUCKET'),
+        beeutil.secrets.get(PLUGIN_NAME, 'AWS_REGION'),
+        beeutil.secrets.get(PLUGIN_NAME, 'AWS_SECRET'),
+        beeutil.secrets.get(PLUGIN_NAME, 'AWS_KEY'),
       )
 
   state['threads'] = [threading.Thread(target=upload_worker, daemon=True).start() for i in range(UPLOAD_THREADS)]

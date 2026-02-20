@@ -106,11 +106,11 @@ import beeutil
 def _setup(state):
     # Load all secrets (cached after first call)
     # Tries: .env file → Hivemapper API via ODC (in that order)
-    env = beeutil.load('my-plugin')
+    env = beeutil.secrets.load('my-plugin')
     bucket = env['AWS_BUCKET']
 
     # Or get a single key
-    bucket = beeutil.get('my-plugin', 'AWS_BUCKET')
+    bucket = beeutil.secrets.get('my-plugin', 'AWS_BUCKET')
 ```
 
 ### Local Development (.env file)

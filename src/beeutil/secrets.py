@@ -7,6 +7,7 @@ Two loading paths, same outcome:
 
 Usage:
   value = beeutil.secrets.get('my-plugin', 'AWS_BUCKET')
+  env   = beeutil.secrets.load('my-plugin')
 
 All KV pairs are loaded atomically on first access, then served from cache.
 """
