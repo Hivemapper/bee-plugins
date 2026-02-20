@@ -2,6 +2,7 @@
 import sys
 import os
 import tempfile
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
@@ -30,19 +31,13 @@ def test_wrong_plugin_id():
 
     encrypted = secrets.encrypt(correct_id, {"KEY": "value"})
 
-    try:
+    with pytest.raises(DecryptionError):
         secrets.decrypt(wrong_id, encrypted)
-        return False
-    except DecryptionError:
-        return True
 
 
 def test_malformed_blob():
-    try:
+    with pytest.raises(DecryptionError):
         secrets.decrypt("507f1f77bcf86cd799439011", "not-a-valid-blob")
-        return False
-    except DecryptionError:
-        return True
 
 
 def test_empty_env():
@@ -117,11 +112,8 @@ def test_get_from_dotenv():
             assert secrets.get('test-plugin', 'MY_KEY') == 'my_value'
             assert secrets.get('test-plugin', 'MY_SECRET') == 'my_secret'
 
-            try:
+            with pytest.raises(KeyError):
                 secrets.get('test-plugin', 'MISSING')
-                return False
-            except KeyError:
-                pass
 
             del os.environ['MY_KEY']
             del os.environ['MY_SECRET']
@@ -158,40 +150,3 @@ def test_load_returns_copy():
             secrets.clear_cache()
 
 
-if __name__ == "__main__":
-    print("=" * 60)
-    print("Plugin Secrets Test Suite")
-    print("=" * 60)
-
-    tests = [
-        ("Encrypt/Decrypt Round-trip", test_encrypt_decrypt_roundtrip),
-        ("Wrong Plugin ID", test_wrong_plugin_id),
-        ("Malformed Blob", test_malformed_blob),
-        ("Empty Env", test_empty_env),
-        ("Parse Dotenv", test_parse_dotenv),
-        ("Atomic Load", test_atomic_rejects_non_string),
-        ("get() from Dotenv", test_get_from_dotenv),
-        ("load() Returns Copy", test_load_returns_copy),
-    ]
-
-    passed = 0
-    failed = 0
-
-    for name, test_fn in tests:
-        print(f"\n--- {name} ---")
-        try:
-            if test_fn():
-                passed += 1
-                print(f"  PASS")
-            else:
-                failed += 1
-                print(f"  FAIL")
-        except Exception as e:
-            print(f"  CRASH: {e}")
-            failed += 1
-
-    print(f"\n{'=' * 60}")
-    print(f"Results: {passed} passed, {failed} failed")
-    print("=" * 60)
-
-    sys.exit(0 if failed == 0 else 1)
