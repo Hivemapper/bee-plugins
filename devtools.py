@@ -14,6 +14,7 @@ DEVICE_PLUGIN_ROUTE = f'{API_ROUTE}/plugin/'
 PAUSE_UPDATES_ROUTE = DEVICE_PLUGIN_ROUTE + 'setPausePluginUpdates'
 
 TEMPLATE_PLUGIN_PATH = '/data/plugins/template-plugin/template-plugin'
+TEMPLATE_PLUGIN_ENV_PATH = '/data/plugins/template-plugin/.env'
 
 CACHE_DIR = '/data/cache';
 
@@ -48,6 +49,16 @@ def push_local_python_update(filepath):
 
     run_command_over_ssh(ssh, f'chmod 700 {TEMPLATE_PLUGIN_PATH}')
 
+def push_env_file(filepath):
+  with paramiko.SSHClient() as ssh:
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect(HOST_IP, username='root', password="", look_for_keys=False, allow_agent=False)
+
+    with SCPClient(ssh.get_transport()) as scp:
+      scp.put(filepath, TEMPLATE_PLUGIN_ENV_PATH)
+
+    run_command_over_ssh(ssh, f'chmod 600 {TEMPLATE_PLUGIN_ENV_PATH}')
+
 def restart_template_plugin_service():
   with paramiko.SSHClient() as ssh:
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -77,6 +88,7 @@ if __name__ == '__main__':
   parser.add_argument('-dI', '--pause_plugin_updates', help="Pause plugin updates.", action='store_true')
   parser.add_argument('-dO', '--resume_plugin_updates', help="Resume plugin updates.", action='store_true')
   parser.add_argument('-i', '--input_file', help="Path to build.sh output .py file.", type=str)
+  parser.add_argument('-e', '--env', help="Path to .env file to push to device.", type=str)
   parser.add_argument('-R', '--restart_plugin', help="Restart plugin", action='store_true')
   parser.add_argument('-f', '--populate_fixture', help="Populate fixture data", type=str)
   parser.add_argument('-d', '--dump_cache', help='Copy cache contents to local machine', action='store_true')
@@ -89,6 +101,11 @@ if __name__ == '__main__':
     print('Plugin updates are paused.')
 
   should_restart_service = args.restart_plugin
+
+  if args.env:
+    push_env_file(args.env)
+    print(f'Pushed {args.env} to {TEMPLATE_PLUGIN_ENV_PATH}')
+    should_restart_service = True
 
   if args.input_file:
     push_local_python_update(args.input_file)

@@ -94,6 +94,67 @@ python3 device.py -W
 python3 device.py -C > calibration.json
 ```
 
+## Encrypted Secrets
+
+Plugins can securely load arbitrary environment variables at runtime instead of hardcoding credentials in source code. Keys are not restricted — any string key-value pairs work.
+
+### Usage in your plugin
+
+```python
+import beeutil
+
+def _setup(state):
+    # Load all secrets (cached after first call)
+    # Tries: .env file → Hivemapper API via ODC (in that order)
+    env = beeutil.secrets.load('my-plugin')
+    bucket = env['AWS_BUCKET']
+
+    # Or get a single key
+    bucket = beeutil.secrets.get('my-plugin', 'AWS_BUCKET')
+```
+
+### Local Development (.env file)
+
+Create `/data/plugins/<plugin-name>/.env` on the device, or push via devtools:
+```bash
+python3 devtools.py -e path/to/.env
+```
+
+Example `.env`:
+```
+AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+AWS_BUCKET=my-bucket
+AWS_REGION=us-west-2
+MY_CUSTOM_KEY=whatever
+```
+
+### Production (encrypt + upload to Hivemapper backend)
+
+Use the provided upload script:
+```bash
+python3 util/upload_secrets.py \
+    --plugin-name my-plugin \
+    --plugin-secret <plugin-api-key> \
+    --env-file .env
+```
+
+This will:
+1. Parse the `.env` file into key-value pairs
+2. Fetch the plugin's `_id` from the Hivemapper backend
+3. Encrypt the KV pairs using `_id` as key material (PBKDF2 + AES-256-CBC)
+4. Upload the encrypted blob via `PUT /plugins/:name/secrets`
+
+The device fetches and decrypts at runtime via ODC API. Use `--dry-run` to encrypt without uploading.
+
+### Technical details
+
+- **Algorithm**: AES-256-CBC with PKCS7 padding
+- **Key derivation**: PBKDF2-HMAC-SHA256 (100k iterations, salt: `hivemapper-plugin-secrets`)
+- **Library**: Uses `cryptography` (pre-installed on device)
+- **Loading priority**: `.env` file → Hivemapper API (via ODC)
+
+
 ## Deploy
 Use your provided plugin name and secret key to build and deploy the build artifact
 ```

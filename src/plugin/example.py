@@ -4,10 +4,7 @@ import threading
 import time
 import uuid
 
-AWS_BUCKET = 'your_bucket'
-AWS_REGION = 'your-aws-region'
-AWS_SECRET = 'IaMaSeCrEt'
-AWS_KEY = 'iAmAkEy'
+PLUGIN_NAME = 'your-plugin-name'
 
 CAPTURE_STEREO = False
 LOOP_DELAY = 5
@@ -28,13 +25,28 @@ def _setup(state):
 
   state['session'] = str(uuid.uuid1())
 
+  vlog('loading env')
+  try:
+    beeutil.secrets.load(PLUGIN_NAME)
+    vlog('env loaded')
+  except beeutil.SecretsError as e:
+    vlog(f'ERROR: Failed to load env: {e}')
+    raise
+
   vlog(f'initializing {UPLOAD_THREADS} upload workers')
   state['uploadQueue'] = queue.Queue()
 
   def upload_worker():
     while True:
       handle = state['uploadQueue'].get()
-      beeutil.upload_to_s3(state['session'], handle, BUCKET, REGION, AWS_SECRET, AWS_KEY)
+      beeutil.upload_to_s3(
+        state['session'],
+        handle,
+        beeutil.secrets.get(PLUGIN_NAME, 'AWS_BUCKET'),
+        beeutil.secrets.get(PLUGIN_NAME, 'AWS_REGION'),
+        beeutil.secrets.get(PLUGIN_NAME, 'AWS_SECRET'),
+        beeutil.secrets.get(PLUGIN_NAME, 'AWS_KEY'),
+      )
 
   state['threads'] = [threading.Thread(target=upload_worker, daemon=True).start() for i in range(UPLOAD_THREADS)]
   state['uploadQueue'] = queue.Queue()
