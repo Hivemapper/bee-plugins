@@ -66,6 +66,12 @@ python3 devtools -d
 python3 devtools -sd
 ```
 
+#### Cached observations
+*To dump cached JPEGs from the device to a zip file:*
+```
+python3 devtools -co
+```
+
 #### Networking
 *To switch the network client to use WiFi, specify a SSID/password:*
 ```
