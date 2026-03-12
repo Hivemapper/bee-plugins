@@ -106,13 +106,16 @@ def _setup(state):
                 state['processed_videos'].add(filepath)
             except Exception as e:
                 vlog(f'ERROR: Upload failed for {item}: {e}')
-                state['processed_videos'].discard(filepath)
             finally:
+                state['in_flight_videos'].discard(filepath)
                 state['uploadQueue'].task_done()
 
     for _ in range(UPLOAD_THREADS):
         t = threading.Thread(target=upload_worker, daemon=True)
         t.start()
+
+    # Seed the video watermark so the first loop only captures new videos
+    state['video_checked_at'] = time.time()
 
     # Fetch initial burst geometries
     _fetch_bursts(state)
@@ -129,17 +132,7 @@ def _loop(state):
 
     vlog(f'{len(contents)} new image(s) since {state["last_checked"]}')
 
-    # Get location from most recent image handle
     latest_handle = contents[-1]
-    location = beeutil.geo.parse_location_from_handle(latest_handle)
-
-    if location is None:
-        vlog(f'could not parse location from handle: {latest_handle}')
-        state['last_checked'] = latest_handle.split('_')[0]
-        return
-
-    lat, lon = location
-    vlog(f'current location: {lat}, {lon}')
 
     # Refresh burst geometries if stale
     bursts = _fetch_bursts(state)
@@ -149,8 +142,28 @@ def _loop(state):
         state['last_checked'] = latest_handle.split('_')[0]
         return
 
-    # Check if inside any burst polygon
-    matching_burst = beeutil.geo.point_in_any_burst(lat, lon, bursts)
+    # Check ALL handles in the batch for burst membership, not just the
+    # newest one.  A device may cross a burst boundary between polls, so
+    # evaluating only the last image would miss bursts entered and exited
+    # within a single LOOP_DELAY window.
+    matching_burst = None
+    for handle in contents:
+        location = beeutil.geo.parse_location_from_handle(handle)
+        if location is None:
+            continue
+        lat, lon = location
+        match = beeutil.geo.point_in_any_burst(lat, lon, bursts)
+        if match is not None:
+            matching_burst = match
+            vlog(f'handle {handle} is inside burst {match.get("_id", "unknown")}')
+            break
+
+    if matching_burst is None:
+        # Log location from the latest parseable handle for diagnostics
+        loc = beeutil.geo.parse_location_from_handle(latest_handle)
+        if loc:
+            vlog(f'current location: {loc[0]}, {loc[1]}')
+        vlog('not inside any burst area (checked all handles in batch)')
 
     # Capture and advance the video watermark before checking burst match,
     # so we never accumulate a backlog of old videos.
@@ -158,7 +171,6 @@ def _loop(state):
     state['video_checked_at'] = time.time()
 
     if matching_burst is None:
-        vlog('not inside any burst area')
         state['last_checked'] = latest_handle.split('_')[0]
         return
 
@@ -168,13 +180,18 @@ def _loop(state):
     # List recent video files using the previous watermark
     video_files = beeutil.video.list_video_files(video_watermark)
 
-    new_videos = [f for f in video_files if f not in state['processed_videos']]
+    # Exclude already-processed and currently-in-flight videos to avoid duplicates
+    new_videos = [
+        f for f in video_files
+        if f not in state['processed_videos'] and f not in state['in_flight_videos']
+    ]
 
     if not new_videos:
         vlog('no new video files to upload')
     else:
         vlog(f'queuing {len(new_videos)} video file(s) for upload')
         for filepath in new_videos:
+            state['in_flight_videos'].add(filepath)
             state['uploadQueue'].put({
                 'filepath': filepath,
                 'burst_id': burst_id,
@@ -191,6 +208,7 @@ def main():
         'bursts': [],
         'bursts_fetched_at': None,
         'processed_videos': set(),
+        'in_flight_videos': set(),
         'video_checked_at': None,
     }
 
