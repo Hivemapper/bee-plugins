@@ -103,8 +103,10 @@ def _setup(state):
                     beeutil.secrets.get(PLUGIN_NAME, 'AWS_KEY'),
                 )
                 vlog(f'uploaded: {filepath}')
+                state['processed_videos'].add(filepath)
             except Exception as e:
                 vlog(f'ERROR: Upload failed for {item}: {e}')
+                state['processed_videos'].discard(filepath)
             finally:
                 state['uploadQueue'].task_done()
 
@@ -150,6 +152,11 @@ def _loop(state):
     # Check if inside any burst polygon
     matching_burst = beeutil.geo.point_in_any_burst(lat, lon, bursts)
 
+    # Capture and advance the video watermark before checking burst match,
+    # so we never accumulate a backlog of old videos.
+    video_watermark = state.get('video_checked_at')
+    state['video_checked_at'] = time.time()
+
     if matching_burst is None:
         vlog('not inside any burst area')
         state['last_checked'] = latest_handle.split('_')[0]
@@ -158,8 +165,8 @@ def _loop(state):
     burst_id = matching_burst.get('_id', 'unknown')
     vlog(f'INSIDE BURST {burst_id} — collecting video')
 
-    # List recent video files
-    video_files = beeutil.video.list_video_files(state.get('video_checked_at'))
+    # List recent video files using the previous watermark
+    video_files = beeutil.video.list_video_files(video_watermark)
 
     new_videos = [f for f in video_files if f not in state['processed_videos']]
 
@@ -172,9 +179,7 @@ def _loop(state):
                 'filepath': filepath,
                 'burst_id': burst_id,
             })
-            state['processed_videos'].add(filepath)
 
-    state['video_checked_at'] = time.time()
     state['last_checked'] = latest_handle.split('_')[0]
 
 
