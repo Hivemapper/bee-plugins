@@ -1,3 +1,4 @@
 from .example import main
-__all__ = ['main']
+from . import burst_video
+__all__ = ['main', 'burst_video']
 
