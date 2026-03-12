@@ -40,22 +40,33 @@ def _fetch_bursts(state):
         all_bursts = data.get('bursts', [])
 
         # Filter for active bee bursts
+        from datetime import datetime, timezone
+        now_utc = datetime.now(timezone.utc)
         active_bursts = []
         for burst in all_bursts:
             if burst.get('disabled', False):
                 continue
             if burst.get('deviceType') and burst['deviceType'] != 'bee':
                 continue
+
             valid_until = burst.get('validUntil')
             if valid_until:
-                # ISO 8601 date string comparison works for future dates
-                from datetime import datetime, timezone
                 try:
                     expiry = datetime.fromisoformat(valid_until.replace('Z', '+00:00'))
-                    if expiry < datetime.now(timezone.utc):
+                    if expiry < now_utc:
                         continue
                 except (ValueError, AttributeError):
                     pass
+
+            valid_from = burst.get('validFrom')
+            if valid_from:
+                try:
+                    start = datetime.fromisoformat(valid_from.replace('Z', '+00:00'))
+                    if start > now_utc:
+                        continue
+                except (ValueError, AttributeError):
+                    pass
+
             active_bursts.append(burst)
 
         state['bursts'] = active_bursts
@@ -165,10 +176,12 @@ def _loop(state):
             vlog(f'current location: {loc[0]}, {loc[1]}')
         vlog('not inside any burst area (checked all handles in batch)')
 
-    # Capture and advance the video watermark before checking burst match,
-    # so we never accumulate a backlog of old videos.
+    # Capture the video watermark.  Only advance it when no uploads are
+    # in-flight so that files whose uploads fail will be re-listed and
+    # retried on subsequent loop iterations.
     video_watermark = state.get('video_checked_at')
-    state['video_checked_at'] = time.time()
+    if not state['in_flight_videos']:
+        state['video_checked_at'] = time.time()
 
     if matching_burst is None:
         state['last_checked'] = latest_handle.split('_')[0]
