@@ -1,6 +1,8 @@
 import requests
 
 BEEMAPS_API_BASE = 'https://hivemapper.com/api/developer'
+ODC_API_BASE = 'http://127.0.0.1:5000/api/1'
+DEFAULT_BURST_RADIUS_M = 10000
 
 def point_in_polygon(lat, lon, polygon_coords):
   """Check if a point is inside a polygon using ray casting.
@@ -92,6 +94,105 @@ def fetch_active_bursts(api_key, limit=100):
   data = res.json()
   bursts = data if isinstance(data, list) else data.get('bursts', [])
   return [b for b in bursts if not b.get('isHit', False)]
+
+
+def fetch_nearby_burst(lat, lon, radius_m=DEFAULT_BURST_RADIUS_M):
+  """Fetch the nearest burst for a coordinate from the local ODC API.
+
+  The endpoint is assumed to exist and may return either:
+    - a burst object
+    - {'burst': {...}}
+    - {'data': {...}}
+    - {'bursts': [{...}, ...]}
+
+  Args:
+    lat: Latitude of the point.
+    lon: Longitude of the point.
+
+  Returns:
+    A burst dict if one is found, otherwise None.
+  """
+  url = f'{ODC_API_BASE}/bursts/near'
+  params = {
+    'lat': lat,
+    'lon': lon,
+    'radius_m': radius_m,
+  }
+
+  res = requests.get(url, params=params, timeout=10)
+  if res.status_code == 404:
+    return None
+  if res.status_code != 200:
+    raise Exception(f'Failed to fetch nearby burst: {res.status_code} {res.text}')
+
+  data = res.json()
+  if isinstance(data, list):
+    return data[0] if data else None
+  if not isinstance(data, dict):
+    return None
+  if isinstance(data.get('burst'), dict):
+    return data['burst']
+  if isinstance(data.get('data'), dict):
+    return data['data']
+  bursts = data.get('bursts')
+  if isinstance(bursts, list) and bursts:
+    return bursts[0]
+  if 'id' in data:
+    return data
+  return None
+
+
+def fetch_nearby_bursts(lat, lon, radius_m=DEFAULT_BURST_RADIUS_M):
+  """Fetch bursts near a coordinate from the local ODC API.
+
+  The endpoint is assumed to exist and may return either:
+    - a list of burst objects
+    - {'bursts': [{...}, ...]}
+    - {'data': [{...}, ...]}
+    - a single burst object
+
+  Args:
+    lat: Latitude of the point.
+    lon: Longitude of the point.
+
+  Returns:
+    List of burst dicts.
+  """
+  url = f'{ODC_API_BASE}/bursts/near'
+  params = {
+    'lat': lat,
+    'lon': lon,
+    'radius_m': radius_m,
+  }
+
+  res = requests.get(url, params=params, timeout=10)
+  if res.status_code == 404:
+    return []
+  if res.status_code != 200:
+    raise Exception(f'Failed to fetch nearby bursts: {res.status_code} {res.text}')
+
+  data = res.json()
+  if isinstance(data, list):
+    return [item for item in data if isinstance(item, dict)]
+  if not isinstance(data, dict):
+    return []
+
+  bursts = data.get('bursts')
+  if isinstance(bursts, list):
+    return [item for item in bursts if isinstance(item, dict)]
+
+  payload = data.get('data')
+  if isinstance(payload, list):
+    return [item for item in payload if isinstance(item, dict)]
+  if isinstance(payload, dict):
+    return [payload]
+
+  burst = data.get('burst')
+  if isinstance(burst, dict):
+    return [burst]
+  if 'id' in data:
+    return [data]
+  return []
 
 
 def _point_in_ring(lat, lon, ring):
