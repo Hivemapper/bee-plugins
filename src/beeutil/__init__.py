@@ -1,6 +1,10 @@
 from .image_cache import image_cache_status, enable_image_collection, disable_image_collection, enable_stereo_collection, disable_stereo_collection, purge_data, list_contents, upload_to_s3
 from . import secrets
 from .secrets import SecretsError, DecryptionError, SecretsNetworkError, SecretsNotFoundError
+from . import embeddings
+from . import recordings
+from .embeddings import EmbeddingsError, DimensionMismatchError
+from .recordings import RecordingsError
 
 __all__ = [
     'image_cache_status', 'enable_image_collection', 'disable_image_collection',
@@ -8,5 +12,8 @@ __all__ = [
     'list_contents', 'upload_to_s3',
     'secrets',
     'SecretsError', 'DecryptionError', 'SecretsNetworkError', 'SecretsNotFoundError',
+    'embeddings', 'recordings',
+    'EmbeddingsError', 'DimensionMismatchError',
+    'RecordingsError',
 ]
 
