@@ -14,6 +14,7 @@ Usage:
 
 import logging
 
+import numpy as np
 import requests
 
 from ._constants import ODC_API_BASE
@@ -154,7 +155,7 @@ def cosine_similarity(a: list, b: list) -> float:
         raise DimensionMismatchError(
             f'Vector dimensions do not match: {len(a)} vs {len(b)}'
         )
-    return sum(x * y for x, y in zip(a, b))
+    return float(np.dot(a, b))
 
 
 def find_matches(embedding_item: dict, query_embeddings: list, default_threshold: float = 0.15) -> list:

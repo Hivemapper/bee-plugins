@@ -149,6 +149,23 @@ def test_find_matches_empty_query_embeddings():
     assert matches == []
 
 
+def test_find_matches_dimension_mismatch_query_vs_embedding():
+    item = _make_embedding_item([1.0, 0.0, 0.0])
+    qe = [{'label': 'test', 'embedding': [1.0, 0.0]}]
+    with pytest.raises(DimensionMismatchError):
+        find_matches(item, qe)
+
+
+def test_find_matches_mixed_dimension_query_embeddings():
+    item = _make_embedding_item([1.0, 0.0, 0.0])
+    qe = [
+        {'label': 'ok', 'embedding': [1.0, 0.0, 0.0]},
+        {'label': 'bad', 'embedding': [1.0, 0.0]},
+    ]
+    with pytest.raises(DimensionMismatchError):
+        find_matches(item, qe)
+
+
 def test_find_matches_malformed_item_missing_data():
     item = {'timestamp_ms': 1, 'filename': 'x'}
     qe = [{'label': 'test', 'embedding': [1.0, 0.0, 0.0]}]
