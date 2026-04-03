@@ -1,16 +1,4 @@
-"""
-Scene embeddings: query, compare, and match.
-
-Two API levels:
-  - High-level: poll_and_match() fetches new embeddings and compares
-    against query embeddings in one call.
-  - Low-level: list_embeddings(), cosine_similarity(), find_matches()
-    for custom matching logic.
-
-Usage:
-  matches, cursor = beeutil.embeddings.poll_and_match(since, query_embeddings)
-  score = beeutil.embeddings.cosine_similarity(vec_a, vec_b)
-"""
+"""Scene embeddings: query, compare, and match."""
 
 import logging
 
@@ -42,12 +30,11 @@ def list_embeddings(since: int = None, until: int = None) -> list:
         until: Unix timestamp in ms (inclusive upper bound)
 
     Returns:
-        List of dicts sorted ascending by timestamp.
-        Malformed entries are filtered out with a warning log.
-        Returns [] if no embeddings exist.
+        List of embedding dicts sorted ascending by timestamp.
+        Malformed entries are filtered out. Returns [] if none exist.
 
     Raises:
-        EmbeddingsError: If odc-api is unreachable or returns an error
+        EmbeddingsError: odc-api unreachable or error response
     """
     params = {}
     if since is not None:
@@ -98,30 +85,26 @@ def list_embeddings(since: int = None, until: int = None) -> list:
 def poll_and_match(since: int, query_embeddings: list, default_threshold: float = 0.15) -> tuple:
     """Fetch new embeddings and compare against query embeddings.
 
-    Convenience function that wraps list_embeddings() + find_matches().
-
     Args:
-        since: Unix timestamp in ms (inclusive lower bound). Pass
-            last_timestamp_ms + 1 from previous call to avoid reprocessing.
+        since: Unix timestamp in ms (inclusive). Pass last_timestamp_ms + 1
+            from previous call to avoid reprocessing.
         query_embeddings: List of dicts with 'label', 'embedding',
             and optional 'threshold'
         default_threshold: Fallback threshold if embedding has none
 
     Returns:
-        Tuple of (matches, last_timestamp_ms):
-        - matches: list of match dicts sorted by score descending
-        - last_timestamp_ms: highest timestamp seen, or input since
-          if no new embeddings
+        (matches, last_timestamp_ms) — matches sorted by score descending,
+        last_timestamp_ms is the highest timestamp seen (or input since
+        if no new embeddings).
 
     Raises:
-        EmbeddingsError: If odc-api is unreachable or returns an error
+        EmbeddingsError: odc-api unreachable or error response
     """
     items = list_embeddings(since=since)
 
     if not items:
         return ([], since)
 
-    # odc-api returns results sorted ascending by timestamp (embeddings.ts:125)
     last_timestamp_ms = items[-1]['timestamp_ms']
     all_matches = []
 
@@ -134,19 +117,7 @@ def poll_and_match(since: int, query_embeddings: list, default_threshold: float 
 
 
 def cosine_similarity(a: list, b: list) -> float:
-    """Cosine similarity between two L2-normalized vectors.
-
-    Both vectors MUST be unit-length (L2-normalized). This function
-    computes the dot product, which equals cosine similarity for
-    normalized vectors. Passing non-normalized vectors will produce
-    incorrect, unbounded results.
-
-    Args:
-        a: list[float] (e.g., 1024-d image embedding)
-        b: list[float] (e.g., 1024-d query embedding)
-
-    Returns:
-        float: Similarity score (1.0 = identical, 0.0 = orthogonal)
+    """Dot product of two L2-normalized vectors.
 
     Raises:
         DimensionMismatchError: If vectors have different lengths
@@ -159,36 +130,17 @@ def cosine_similarity(a: list, b: list) -> float:
 
 
 def find_matches(embedding_item: dict, query_embeddings: list, default_threshold: float = 0.15) -> list:
-    """Compare an embedding against all query embeddings.
-
-    Uses per-embedding threshold if present, otherwise default_threshold.
+    """Compare a scene embedding against all query embeddings.
 
     Args:
-        embedding_item: Full embedding dict from list_embeddings().
-            Expected shape: {
-                'timestamp_ms': int,
-                'filename': str,
-                'data': {'embedding': list[float], 'lat': float, 'lon': float}
-            }
-        query_embeddings: List of dicts, each with:
-            - 'label' (str, required)
-            - 'embedding' (list[float], required)
-            - 'threshold' (float, optional)
+        embedding_item: Embedding dict from list_embeddings()
+        query_embeddings: List of dicts with 'label', 'embedding',
+            and optional 'threshold'
         default_threshold: Fallback threshold if embedding has none
 
     Returns:
-        List of dicts for matches above threshold, sorted by score descending:
-        [{
-            label: str,
-            score: float,
-            margin: float,
-            timestamp_ms: int,
-            lat: float,
-            lon: float,
-            filename: str
-        }]
-
-        Returns [] if no matches above threshold.
+        List of match dicts above threshold, sorted by score descending.
+        Returns [] if no matches.
     """
     embedding_vector = embedding_item['data']['embedding']
     matches = []
@@ -212,22 +164,16 @@ def find_matches(embedding_item: dict, query_embeddings: list, default_threshold
 
 
 def load_query_embeddings(plugin_name: str) -> list:
-    """Load query embeddings from the device's dashcam config.
-
-    Query embeddings are stored in the backend (CAP-103) and delivered
-    to the device via the user-specific dashcam config, which odc-api
-    syncs approximately every 10 minutes.
+    """Load query embeddings from the device config.
 
     Args:
-        plugin_name: Plugin name (currently unused, reserved for
-            future per-plugin query embedding support)
+        plugin_name: Plugin name (reserved for future use)
 
     Returns:
-        List of dicts: [{label: str, embedding: list[float], threshold: float|None}]
+        List of dicts: [{label, embedding, threshold}]
 
     Raises:
-        EmbeddingsError: If query embeddings cannot be loaded or
-            are not configured
+        EmbeddingsError: If query embeddings cannot be loaded
     """
     try:
         resp = requests.get(
@@ -238,10 +184,7 @@ def load_query_embeddings(plugin_name: str) -> list:
         raise EmbeddingsError(f'Failed to reach odc-api: {e}')
 
     if resp.status_code == 404:
-        raise EmbeddingsError(
-            'No query embeddings configured. Set them via the backend '
-            'dashcam config (CAP-103).'
-        )
+        raise EmbeddingsError('No query embeddings configured.')
 
     if resp.status_code != 200:
         raise EmbeddingsError(f'odc-api error {resp.status_code}: {resp.text}')

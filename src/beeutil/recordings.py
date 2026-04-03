@@ -1,12 +1,4 @@
-"""
-Recordings: query video files from the device.
-
-Shared utility across plugins. Wraps the odc-api recordings endpoint
-so plugins can find video clips by time range without knowing endpoint details.
-
-Usage:
-  videos = beeutil.recordings.get_videos_by_timerange(start_ms, end_ms)
-"""
+"""Recordings: query video files from the device."""
 
 import logging
 
@@ -27,24 +19,15 @@ class RecordingsError(Exception):
 def get_videos_by_timerange(start_ms: int, end_ms: int) -> list:
     """Find video files covering a time range.
 
-    Video segments are ~10 seconds each (determined by firmware).
-    Choose your time range accordingly — e.g., +/- 15 seconds
-    around an event timestamp to catch the containing segment.
-
     Args:
-        start_ms: Start timestamp in Unix ms (required)
-        end_ms: End timestamp in Unix ms (required)
+        start_ms: Start timestamp in Unix ms
+        end_ms: End timestamp in Unix ms
 
     Returns:
-        List of full file path strings, e.g.:
-        ["/data/video/1715027100000.mp4"]
-
-        Returns [] if no videos found for the given range
-        (including when /data/video/ does not exist on device).
-        Videos may be .mp4 or .h264 format.
+        List of file path strings. Returns [] if no videos found.
 
     Raises:
-        RecordingsError: If odc-api is unreachable or returns an error
+        RecordingsError: odc-api unreachable or error response
     """
     url = f'{ODC_API_BASE}/recordings/video/query-by-timestamp-ms/{start_ms}/{end_ms}'
     try:
