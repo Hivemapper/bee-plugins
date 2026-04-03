@@ -212,21 +212,46 @@ def find_matches(embedding_item: dict, query_embeddings: list, default_threshold
 
 
 def load_query_embeddings(plugin_name: str) -> list:
-    """Load query embeddings from the backend via odc-api.
+    """Load query embeddings from the device's dashcam config.
 
-    NOTE: Not yet available. Requires CAP-104 (odc-api proxy endpoint).
-    For V0, hardcode query embeddings or load from a local file.
+    Query embeddings are stored in the backend (CAP-103) and delivered
+    to the device via the user-specific dashcam config, which odc-api
+    syncs approximately every 10 minutes.
 
     Args:
-        plugin_name: Plugin name to fetch query embeddings for
+        plugin_name: Plugin name (currently unused, reserved for
+            future per-plugin query embedding support)
 
     Returns:
         List of dicts: [{label: str, embedding: list[float], threshold: float|None}]
 
     Raises:
-        EmbeddingsError: If query embeddings cannot be loaded
+        EmbeddingsError: If query embeddings cannot be loaded or
+            are not configured
     """
-    raise EmbeddingsError(
-        f'load_query_embeddings is not yet available (requires CAP-104). '
-        f'For V0, hardcode query embeddings or load from a local file.'
-    )
+    try:
+        resp = requests.get(
+            f'{ODC_API_BASE}/config/key/queryEmbeddings',
+            timeout=TIMEOUT,
+        )
+    except requests.RequestException as e:
+        raise EmbeddingsError(f'Failed to reach odc-api: {e}')
+
+    if resp.status_code == 404:
+        raise EmbeddingsError(
+            'No query embeddings configured. Set them via the backend '
+            'dashcam config (CAP-103).'
+        )
+
+    if resp.status_code != 200:
+        raise EmbeddingsError(f'odc-api error {resp.status_code}: {resp.text}')
+
+    try:
+        data = resp.json()
+    except ValueError:
+        raise EmbeddingsError('Invalid JSON response from odc-api')
+
+    if not isinstance(data, list):
+        raise EmbeddingsError(f'Expected list of query embeddings, got {type(data).__name__}')
+
+    return data

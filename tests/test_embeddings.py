@@ -426,6 +426,42 @@ def test_poll_and_match_propagates_error():
 
 # --- load_query_embeddings tests ---
 
-def test_load_query_embeddings_raises_not_available():
-    with pytest.raises(EmbeddingsError, match='not yet available'):
-        load_query_embeddings('my-plugin')
+def test_load_query_embeddings_returns_data():
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = [
+        {'label': 'Baby_stroller', 'embedding': [0.1, 0.2], 'threshold': 0.15}
+    ]
+
+    with patch('beeutil.embeddings.requests.get', return_value=mock_resp) as mock_get:
+        result = load_query_embeddings('my-plugin')
+        assert len(result) == 1
+        assert result[0]['label'] == 'Baby_stroller'
+        url = mock_get.call_args[0][0]
+        assert '/config/key/queryEmbeddings' in url
+
+
+def test_load_query_embeddings_raises_on_404():
+    mock_resp = MagicMock()
+    mock_resp.status_code = 404
+
+    with patch('beeutil.embeddings.requests.get', return_value=mock_resp):
+        with pytest.raises(EmbeddingsError, match='No query embeddings configured'):
+            load_query_embeddings('my-plugin')
+
+
+def test_load_query_embeddings_raises_on_non_list():
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {'not': 'a list'}
+
+    with patch('beeutil.embeddings.requests.get', return_value=mock_resp):
+        with pytest.raises(EmbeddingsError, match='Expected list'):
+            load_query_embeddings('my-plugin')
+
+
+def test_load_query_embeddings_raises_on_network_error():
+    import requests as req
+    with patch('beeutil.embeddings.requests.get', side_effect=req.ConnectionError('refused')):
+        with pytest.raises(EmbeddingsError):
+            load_query_embeddings('my-plugin')
