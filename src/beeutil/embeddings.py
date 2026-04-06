@@ -2,14 +2,10 @@
 
 from __future__ import annotations
 
-import logging
-
 import numpy as np
 import requests
 
 from ._constants import ODC_API_BASE
-
-logger = logging.getLogger(__name__)
 
 TIMEOUT = 10
 
@@ -26,10 +22,7 @@ def list_embeddings(
     since: int | None = None,
     until: int | None = None,
 ) -> list[dict]:
-    """Query scene embeddings from odc-api.
-
-    Malformed entries are filtered out. Returns [] if none exist.
-    """
+    """Query scene embeddings from odc-api."""
     params: dict = {}
     if since is not None:
         params['since'] = since
@@ -53,35 +46,17 @@ def list_embeddings(
     try:
         items = resp.json()
     except ValueError as e:
-        raise EmbeddingsError('Invalid JSON response from odc-api') from e
+        raise EmbeddingsError('Invalid JSON response') from e
 
     if not isinstance(items, list):
         raise EmbeddingsError(
-            f'Expected list from odc-api, got {type(items).__name__}',
+            f'Expected list, got {type(items).__name__}',
         )
 
-    valid = []
-    for item in items:
-        data = item.get('data')
-        fname = item.get('filename')
-        if not isinstance(data, dict):
-            logger.warning('Skipping embedding missing data: %s', fname)
-            continue
-        if not isinstance(data.get('embedding'), list):
-            logger.warning('Skipping embedding missing vector: %s', fname)
-            continue
-        if 'timestamp_ms' not in item or 'filename' not in item:
-            logger.warning('Skipping embedding missing fields: %s', fname)
-            continue
-        if 'lat' not in data or 'lon' not in data:
-            logger.warning('Skipping embedding missing lat/lon: %s', fname)
-            continue
-        valid.append(item)
-
-    return valid
+    return items
 
 
-def poll_and_match(
+def fetch_and_match(
     since: int,
     query_embeddings: list[dict],
     default_threshold: float = 0.15,

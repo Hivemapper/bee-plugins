@@ -11,10 +11,10 @@ from beeutil.embeddings import (
     DimensionMismatchError,
     EmbeddingsError,
     cosine_similarity,
+    fetch_and_match,
     find_matches,
     list_embeddings,
     load_query_embeddings,
-    poll_and_match,
 )
 
 # --- cosine_similarity tests ---
@@ -164,26 +164,6 @@ def test_list_embeddings_returns_valid_items():
         assert result[1]['timestamp_ms'] == 2000
 
 
-def test_list_embeddings_filters_malformed():
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = [
-        {
-            'filename': 'good.json', 'timestamp_ms': 1000,
-            'data': {'lat': 37.0, 'lon': -122.0, 'embedding': [0.1]},
-        },
-        {
-            'filename': 'no_embedding.json', 'timestamp_ms': 2000,
-            'data': {'lat': 37.0, 'lon': -122.0},
-        },
-        {'filename': 'no_data.json', 'timestamp_ms': 3000},
-    ]
-
-    with patch('beeutil.embeddings.requests.get', return_value=mock_resp):
-        result = list_embeddings()
-        assert len(result) == 1
-        assert result[0]['filename'] == 'good.json'
-
 
 def test_list_embeddings_empty():
     mock_resp = MagicMock()
@@ -230,50 +210,11 @@ def test_list_embeddings_raises_on_invalid_json():
         list_embeddings()
 
 
-def test_list_embeddings_filters_missing_timestamp():
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = [
-        {
-            'filename': 'good.json', 'timestamp_ms': 1000,
-            'data': {'lat': 37.0, 'lon': -122.0, 'embedding': [0.1]},
-        },
-        {
-            'filename': 'no_ts.json',
-            'data': {'lat': 37.0, 'lon': -122.0, 'embedding': [0.1]},
-        },
-    ]
 
-    with patch('beeutil.embeddings.requests.get', return_value=mock_resp):
-        result = list_embeddings()
-        assert len(result) == 1
-        assert result[0]['filename'] == 'good.json'
+# --- fetch_and_match tests ---
 
 
-def test_list_embeddings_filters_missing_lat_lon():
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = [
-        {
-            'filename': 'good.json', 'timestamp_ms': 1000,
-            'data': {'lat': 37.0, 'lon': -122.0, 'embedding': [0.1]},
-        },
-        {
-            'filename': 'no_lat.json', 'timestamp_ms': 2000,
-            'data': {'embedding': [0.1]},
-        },
-    ]
-
-    with patch('beeutil.embeddings.requests.get', return_value=mock_resp):
-        result = list_embeddings()
-        assert len(result) == 1
-        assert result[0]['filename'] == 'good.json'
-
-
-# --- poll_and_match tests ---
-
-
-def test_poll_and_match_returns_matches_and_cursor():
+def test_fetch_and_match_returns_matches_and_cursor():
     mock_resp = MagicMock()
     mock_resp.status_code = 200
     mock_resp.json.return_value = [
@@ -295,14 +236,14 @@ def test_poll_and_match_returns_matches_and_cursor():
     qe = [{'label': 'target', 'embedding': [1.0, 0.0, 0.0], 'threshold': 0.5}]
 
     with patch('beeutil.embeddings.requests.get', return_value=mock_resp):
-        matches, last_ts = poll_and_match(0, qe)
+        matches, last_ts = fetch_and_match(0, qe)
         assert len(matches) == 1
         assert matches[0]['label'] == 'target'
         assert matches[0]['timestamp_ms'] == 1000
         assert last_ts == 2000
 
 
-def test_poll_and_match_advances_cursor_even_with_no_matches():
+def test_fetch_and_match_advances_cursor_even_with_no_matches():
     mock_resp = MagicMock()
     mock_resp.status_code = 200
     mock_resp.json.return_value = [
@@ -317,18 +258,18 @@ def test_poll_and_match_advances_cursor_even_with_no_matches():
     qe = [{'label': 'target', 'embedding': [1.0, 0.0, 0.0], 'threshold': 0.99}]
 
     with patch('beeutil.embeddings.requests.get', return_value=mock_resp):
-        matches, last_ts = poll_and_match(0, qe)
+        matches, last_ts = fetch_and_match(0, qe)
         assert matches == []
         assert last_ts == 5000
 
 
-def test_poll_and_match_returns_since_when_no_embeddings():
+def test_fetch_and_match_returns_since_when_no_embeddings():
     mock_resp = MagicMock()
     mock_resp.status_code = 200
     mock_resp.json.return_value = []
 
     with patch('beeutil.embeddings.requests.get', return_value=mock_resp):
-        matches, last_ts = poll_and_match(42, [])
+        matches, last_ts = fetch_and_match(42, [])
         assert matches == []
         assert last_ts == 42
 
