@@ -60,14 +60,14 @@ select = ["B", "E", "F", "I", "PT", "UP"]
 ignore = ["E501"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["beeutil"]
+known-first-party = ["beeutil", "plugin"]
 
 [tool.pytest.ini_options]
 addopts = ["--import-mode=importlib", "-ra", "--strict-markers"]
 
 [tool.mypy]
 python_version = "3.9"
-packages = ["beeutil", "plugin"]
+files = ["src"]
 mypy_path = ["src"]
 check_untyped_defs = true
 no_implicit_optional = true
