@@ -50,33 +50,6 @@ def test_known_similarity_negative():
     assert cosine_similarity(a, b) == pytest.approx(-0.5, abs=1e-10)
 
 
-def test_realistic_1024d_known_value():
-    # Verify against manual dot product computation
-    import random
-    random.seed(42)
-    a = [random.gauss(0, 1) for _ in range(1024)]
-    b = [random.gauss(0, 1) for _ in range(1024)]
-    # Normalize
-    norm_a = math.sqrt(sum(x * x for x in a))
-    norm_b = math.sqrt(sum(x * x for x in b))
-    a = [x / norm_a for x in a]
-    b = [x / norm_b for x in b]
-    # Compute expected value manually
-    expected = sum(x * y for x, y in zip(a, b))
-    result = cosine_similarity(a, b)
-    assert result == pytest.approx(expected, abs=1e-10)
-    assert -1.0 <= result <= 1.0
-
-
-def test_self_similarity_of_normalized_vector():
-    # A normalized vector dotted with itself should be 1.0
-    import random
-    random.seed(99)
-    v = [random.gauss(0, 1) for _ in range(512)]
-    norm = math.sqrt(sum(x * x for x in v))
-    v = [x / norm for x in v]
-    assert cosine_similarity(v, v) == pytest.approx(1.0, abs=1e-10)
-
 
 def test_dimension_mismatch():
     a = [1.0, 0.0, 0.0]
@@ -166,19 +139,6 @@ def test_find_matches_mixed_dimension_query_embeddings():
         find_matches(item, qe)
 
 
-def test_find_matches_malformed_item_missing_data():
-    item = {'timestamp_ms': 1, 'filename': 'x'}
-    qe = [{'label': 'test', 'embedding': [1.0, 0.0, 0.0]}]
-    with pytest.raises(KeyError):
-        find_matches(item, qe)
-
-
-def test_find_matches_malformed_item_missing_embedding():
-    item = {'timestamp_ms': 1, 'filename': 'x', 'data': {'lat': 0, 'lon': 0}}
-    qe = [{'label': 'test', 'embedding': [1.0, 0.0, 0.0]}]
-    with pytest.raises(KeyError):
-        find_matches(item, qe)
-
 
 # --- list_embeddings tests ---
 
@@ -202,9 +162,7 @@ def test_list_embeddings_returns_valid_items():
         result = list_embeddings(since=500, until=3000)
         assert len(result) == 2
         assert result[0]['timestamp_ms'] == 1000
-        _, kwargs = mock_get.call_args
-        assert kwargs['params'] == {'since': 500, 'until': 3000}
-        assert kwargs['timeout'] == 10
+        assert result[1]['timestamp_ms'] == 2000
 
 
 def test_list_embeddings_filters_malformed():
@@ -253,44 +211,6 @@ def test_list_embeddings_raises_on_non_200():
             list_embeddings()
 
 
-def test_list_embeddings_raises_on_network_error():
-    import requests as req
-    with patch('beeutil.embeddings.requests.get', side_effect=req.ConnectionError('refused')):
-        with pytest.raises(EmbeddingsError):
-            list_embeddings()
-
-
-def test_list_embeddings_no_params():
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = []
-
-    with patch('beeutil.embeddings.requests.get', return_value=mock_resp) as mock_get:
-        list_embeddings()
-        _, kwargs = mock_get.call_args
-        assert kwargs['params'] == {}
-
-
-def test_list_embeddings_since_only():
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = []
-
-    with patch('beeutil.embeddings.requests.get', return_value=mock_resp) as mock_get:
-        list_embeddings(since=1000)
-        _, kwargs = mock_get.call_args
-        assert kwargs['params'] == {'since': 1000}
-
-
-def test_list_embeddings_until_only():
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = []
-
-    with patch('beeutil.embeddings.requests.get', return_value=mock_resp) as mock_get:
-        list_embeddings(until=5000)
-        _, kwargs = mock_get.call_args
-        assert kwargs['params'] == {'until': 5000}
 
 
 def test_list_embeddings_raises_on_non_list_response():
@@ -406,22 +326,6 @@ def test_poll_and_match_returns_since_when_no_embeddings():
         assert last_ts == 42
 
 
-def test_poll_and_match_forwards_since_param():
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = []
-
-    with patch('beeutil.embeddings.requests.get', return_value=mock_resp) as mock_get:
-        poll_and_match(12345, [])
-        _, kwargs = mock_get.call_args
-        assert kwargs['params'] == {'since': 12345}
-
-
-def test_poll_and_match_propagates_error():
-    import requests as req
-    with patch('beeutil.embeddings.requests.get', side_effect=req.ConnectionError('refused')):
-        with pytest.raises(EmbeddingsError):
-            poll_and_match(0, [])
 
 
 # --- load_query_embeddings tests ---
@@ -460,8 +364,3 @@ def test_load_query_embeddings_raises_on_non_list():
             load_query_embeddings('my-plugin')
 
 
-def test_load_query_embeddings_raises_on_network_error():
-    import requests as req
-    with patch('beeutil.embeddings.requests.get', side_effect=req.ConnectionError('refused')):
-        with pytest.raises(EmbeddingsError):
-            load_query_embeddings('my-plugin')

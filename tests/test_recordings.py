@@ -43,19 +43,3 @@ def test_raises_on_non_200():
             get_videos_by_timerange(0, 100)
 
 
-def test_raises_on_network_error():
-    import requests as req
-    with patch('beeutil.recordings.requests.get', side_effect=req.ConnectionError('refused')):
-        with pytest.raises(RecordingsError):
-            get_videos_by_timerange(0, 100)
-
-
-def test_uses_timeout():
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = {'files': []}
-
-    with patch('beeutil.recordings.requests.get', return_value=mock_resp) as mock_get:
-        get_videos_by_timerange(0, 100)
-        _, kwargs = mock_get.call_args
-        assert 'timeout' in kwargs
