@@ -1,0 +1,36 @@
+name: Lint and Type Check
+
+on:
+  pull_request:
+    paths:
+      - "**/*.py"
+      - "pyproject.toml"
+      - ".pre-commit-config.yaml"
+      - ".github/workflows/lint-and-type-check.yml"
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Install dev dependencies
+        run: uv sync --group dev
+
+      - name: Run Ruff
+        run: uv run ruff check .
+
+      - name: Run mypy
+        run: uv run mypy
