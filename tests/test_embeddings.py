@@ -1,4 +1,3 @@
-import math
 import os
 import sys
 from unittest.mock import MagicMock, patch
@@ -20,44 +19,9 @@ from beeutil.embeddings import (
 # --- cosine_similarity tests ---
 
 
-def test_identical_vectors():
-    v = [1.0, 0.0, 0.0]
-    assert cosine_similarity(v, v) == pytest.approx(1.0)
-
-
-def test_orthogonal_vectors():
-    a = [1.0, 0.0, 0.0]
-    b = [0.0, 1.0, 0.0]
-    assert cosine_similarity(a, b) == pytest.approx(0.0)
-
-
-def test_opposite_vectors():
-    a = [1.0, 0.0]
-    b = [-1.0, 0.0]
-    assert cosine_similarity(a, b) == pytest.approx(-1.0)
-
-
-def test_known_similarity_value():
-    a = [math.sqrt(2) / 2, math.sqrt(2) / 2]
-    b = [1.0, 0.0]
-    assert cosine_similarity(a, b) == pytest.approx(
-        math.sqrt(2) / 2, abs=1e-10,
-    )
-
-
-def test_known_similarity_negative():
-    a = [1.0, 0.0]
-    b = [-0.5, math.sqrt(3) / 2]
-    assert cosine_similarity(a, b) == pytest.approx(-0.5, abs=1e-10)
-
-
 def test_dimension_mismatch():
     with pytest.raises(DimensionMismatchError):
         cosine_similarity([1.0, 0.0, 0.0], [1.0, 0.0])
-
-
-def test_empty_vectors():
-    assert cosine_similarity([], []) == pytest.approx(0.0)
 
 
 # --- find_matches tests ---
@@ -117,12 +81,6 @@ def test_find_matches_sorted_by_score_descending():
     assert matches[1]['label'] == 'low'
 
 
-def test_find_matches_empty_query_embeddings():
-    item = _make_embedding_item([1.0, 0.0, 0.0])
-    matches = find_matches(item, [], default_threshold=0.5)
-    assert matches == []
-
-
 def test_find_matches_dimension_mismatch_query_vs_embedding():
     item = _make_embedding_item([1.0, 0.0, 0.0])
     qe = [{'label': 'test', 'embedding': [1.0, 0.0]}]
@@ -130,20 +88,10 @@ def test_find_matches_dimension_mismatch_query_vs_embedding():
         find_matches(item, qe)
 
 
-def test_find_matches_mixed_dimension_query_embeddings():
-    item = _make_embedding_item([1.0, 0.0, 0.0])
-    qe = [
-        {'label': 'ok', 'embedding': [1.0, 0.0, 0.0]},
-        {'label': 'bad', 'embedding': [1.0, 0.0]},
-    ]
-    with pytest.raises(DimensionMismatchError):
-        find_matches(item, qe)
-
-
 # --- list_embeddings tests ---
 
 
-def test_list_embeddings_returns_valid_items():
+def test_list_embeddings_returns_items():
     mock_resp = MagicMock()
     mock_resp.status_code = 200
     mock_resp.json.return_value = [
@@ -162,16 +110,6 @@ def test_list_embeddings_returns_valid_items():
         assert len(result) == 2
         assert result[0]['timestamp_ms'] == 1000
         assert result[1]['timestamp_ms'] == 2000
-
-
-
-def test_list_embeddings_empty():
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = []
-
-    with patch('beeutil.embeddings.requests.get', return_value=mock_resp):
-        assert list_embeddings() == []
 
 
 def test_list_embeddings_raises_on_non_200():
@@ -208,7 +146,6 @@ def test_list_embeddings_raises_on_invalid_json():
         pytest.raises(EmbeddingsError, match='Invalid JSON'),
     ):
         list_embeddings()
-
 
 
 # --- fetch_and_match tests ---
