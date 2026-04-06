@@ -2,9 +2,29 @@
 Develop realtime mapping and edge AI solutions with the Bee
 
 ## Installation
+```bash
+uv sync --group dev
+source .venv/bin/activate
 ```
-python3 -m pip install -r requirements.txt
+
+The installable Python package in this repo is `beeutil`. The root scripts such as
+`devtools.py`, `device.py`, and `deploy.py` remain repo-local tooling.
+
+## Quality Checks
+```bash
+ruff check .
+ruff format .
+pytest
+mypy
 ```
+
+To install the local Git hooks:
+```bash
+pre-commit install
+```
+
+## Legacy Setup
+The old `requirements.txt` workflow has been replaced by `pyproject.toml`.
 
 ## Build
 ```
@@ -47,7 +67,7 @@ python3 devtools.py -dO
 #### Fixture Data
 *To load fixture data, specify a fixture dataset like:*
 ```
-python3 devtools -f tokyo
+python3 devtools.py -f tokyo
 ```
 
 **Provided Fixtures**
@@ -57,13 +77,13 @@ python3 devtools -f tokyo
 
 *To dump cache contents to local machine:*
 ```
-python3 devtools -d
+python3 devtools.py -d
 ```
 
 #### State dump
 *To dump the device logs and state to a zip file:*
 ```
-python3 devtools -sd
+python3 devtools.py -sd
 ```
 
 #### Networking
