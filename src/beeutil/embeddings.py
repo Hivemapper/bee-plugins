@@ -1,5 +1,7 @@
 """Scene embeddings: query, compare, and match."""
 
+from __future__ import annotations
+
 import logging
 
 import numpy as np
@@ -14,29 +16,21 @@ TIMEOUT = 10
 
 class EmbeddingsError(Exception):
     """Base exception for embeddings operations."""
-    pass
 
 
 class DimensionMismatchError(EmbeddingsError):
     """Vectors have incompatible dimensions."""
-    pass
 
 
-def list_embeddings(since: int = None, until: int = None) -> list:
+def list_embeddings(
+    since: int | None = None,
+    until: int | None = None,
+) -> list[dict]:
     """Query scene embeddings from odc-api.
 
-    Args:
-        since: Unix timestamp in ms (inclusive lower bound)
-        until: Unix timestamp in ms (inclusive upper bound)
-
-    Returns:
-        List of embedding dicts sorted ascending by timestamp.
-        Malformed entries are filtered out. Returns [] if none exist.
-
-    Raises:
-        EmbeddingsError: odc-api unreachable or error response
+    Malformed entries are filtered out. Returns [] if none exist.
     """
-    params = {}
+    params: dict = {}
     if since is not None:
         params['since'] = since
     if until is not None:
@@ -49,56 +43,54 @@ def list_embeddings(since: int = None, until: int = None) -> list:
             timeout=TIMEOUT,
         )
     except requests.RequestException as e:
-        raise EmbeddingsError(f'Failed to reach odc-api: {e}')
+        raise EmbeddingsError(f'Failed to reach odc-api: {e}') from e
 
     if resp.status_code != 200:
-        raise EmbeddingsError(f'odc-api error {resp.status_code}: {resp.text}')
+        raise EmbeddingsError(
+            f'odc-api error {resp.status_code}: {resp.text}',
+        )
 
     try:
         items = resp.json()
-    except ValueError:
-        raise EmbeddingsError(f'Invalid JSON response from odc-api')
+    except ValueError as e:
+        raise EmbeddingsError('Invalid JSON response from odc-api') from e
 
     if not isinstance(items, list):
-        raise EmbeddingsError(f'Expected list from odc-api, got {type(items).__name__}')
+        raise EmbeddingsError(
+            f'Expected list from odc-api, got {type(items).__name__}',
+        )
 
     valid = []
     for item in items:
         data = item.get('data')
+        fname = item.get('filename')
         if not isinstance(data, dict):
-            logger.warning('Skipping embedding with missing data: %s', item.get('filename'))
+            logger.warning('Skipping embedding missing data: %s', fname)
             continue
         if not isinstance(data.get('embedding'), list):
-            logger.warning('Skipping embedding with missing/invalid embedding: %s', item.get('filename'))
+            logger.warning('Skipping embedding missing vector: %s', fname)
             continue
         if 'timestamp_ms' not in item or 'filename' not in item:
-            logger.warning('Skipping embedding with missing timestamp_ms/filename: %s', item.get('filename'))
+            logger.warning('Skipping embedding missing fields: %s', fname)
             continue
         if 'lat' not in data or 'lon' not in data:
-            logger.warning('Skipping embedding with missing lat/lon: %s', item.get('filename'))
+            logger.warning('Skipping embedding missing lat/lon: %s', fname)
             continue
         valid.append(item)
 
     return valid
 
 
-def poll_and_match(since: int, query_embeddings: list, default_threshold: float = 0.15) -> tuple:
-    """Fetch new embeddings and compare against query embeddings.
+def poll_and_match(
+    since: int,
+    query_embeddings: list[dict],
+    default_threshold: float = 0.15,
+) -> tuple[list[dict], int]:
+    """Fetch new embeddings since a timestamp and return matches.
 
-    Args:
-        since: Unix timestamp in ms (inclusive). Pass last_timestamp_ms + 1
-            from previous call to avoid reprocessing.
-        query_embeddings: List of dicts with 'label', 'embedding',
-            and optional 'threshold'
-        default_threshold: Fallback threshold if embedding has none
-
-    Returns:
-        (matches, last_timestamp_ms) — matches sorted by score descending,
-        last_timestamp_ms is the highest timestamp seen (or input since
-        if no new embeddings).
-
-    Raises:
-        EmbeddingsError: odc-api unreachable or error response
+    since is inclusive — pass last_timestamp_ms + 1 to avoid reprocessing.
+    Returns (matches, last_timestamp_ms). Cursor advances even with
+    no matches.
     """
     items = list_embeddings(since=since)
 
@@ -116,31 +108,23 @@ def poll_and_match(since: int, query_embeddings: list, default_threshold: float 
     return (all_matches, last_timestamp_ms)
 
 
-def cosine_similarity(a: list, b: list) -> float:
-    """Dot product of two L2-normalized vectors.
-
-    Raises:
-        DimensionMismatchError: If vectors have different lengths
-    """
+def cosine_similarity(a: list[float], b: list[float]) -> float:
+    """Dot product of two L2-normalized vectors."""
     if len(a) != len(b):
         raise DimensionMismatchError(
-            f'Vector dimensions do not match: {len(a)} vs {len(b)}'
+            f'Vector dimensions do not match: {len(a)} vs {len(b)}',
         )
     return float(np.dot(a, b))
 
 
-def find_matches(embedding_item: dict, query_embeddings: list, default_threshold: float = 0.15) -> list:
+def find_matches(
+    embedding_item: dict,
+    query_embeddings: list[dict],
+    default_threshold: float = 0.15,
+) -> list[dict]:
     """Compare a scene embedding against all query embeddings.
 
-    Args:
-        embedding_item: Embedding dict from list_embeddings()
-        query_embeddings: List of dicts with 'label', 'embedding',
-            and optional 'threshold'
-        default_threshold: Fallback threshold if embedding has none
-
-    Returns:
-        List of match dicts above threshold, sorted by score descending.
-        Returns [] if no matches.
+    Returns matches above threshold, sorted by score descending.
     """
     embedding_vector = embedding_item['data']['embedding']
     matches = []
@@ -163,38 +147,9 @@ def find_matches(embedding_item: dict, query_embeddings: list, default_threshold
     return matches
 
 
-def load_query_embeddings(plugin_name: str) -> list:
-    """Load query embeddings from the device config.
+def load_query_embeddings(plugin_name: str) -> list[dict]:
+    """Load query embeddings from the device.
 
-    Args:
-        plugin_name: Plugin name (reserved for future use)
-
-    Returns:
-        List of dicts: [{label, embedding, threshold}]
-
-    Raises:
-        EmbeddingsError: If query embeddings cannot be loaded
+    Blocked on CAP-103 — endpoint TBD.
     """
-    try:
-        resp = requests.get(
-            f'{ODC_API_BASE}/config/key/queryEmbeddings',
-            timeout=TIMEOUT,
-        )
-    except requests.RequestException as e:
-        raise EmbeddingsError(f'Failed to reach odc-api: {e}')
-
-    if resp.status_code == 404:
-        raise EmbeddingsError('No query embeddings configured.')
-
-    if resp.status_code != 200:
-        raise EmbeddingsError(f'odc-api error {resp.status_code}: {resp.text}')
-
-    try:
-        data = resp.json()
-    except ValueError:
-        raise EmbeddingsError('Invalid JSON response from odc-api')
-
-    if not isinstance(data, list):
-        raise EmbeddingsError(f'Expected list of query embeddings, got {type(data).__name__}')
-
-    return data
+    raise EmbeddingsError('load_query_embeddings not yet implemented')
