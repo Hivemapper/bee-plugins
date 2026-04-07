@@ -23,7 +23,7 @@ import sys
 import requests
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-from beeutil.secrets import encrypt, _parse_dotenv
+from beeutil.secrets import _parse_dotenv, encrypt
 
 DEFAULT_BASE_URL = 'https://hivemapper.com'
 
@@ -79,7 +79,7 @@ def main():
     print(f'Encrypted blob: {len(encrypted_blob)} chars')
 
     if args.dry_run:
-        print(f'\n--- DRY RUN (not uploading) ---')
+        print('\n--- DRY RUN (not uploading) ---')
         print(encrypted_blob)
         return
 

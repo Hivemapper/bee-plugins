@@ -1,8 +1,9 @@
-import beeutil
 import queue
 import threading
 import time
 import uuid
+
+import beeutil
 
 PLUGIN_NAME = 'your-plugin-name'
 
