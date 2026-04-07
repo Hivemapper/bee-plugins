@@ -7,6 +7,14 @@ on:
       - "pyproject.toml"
       - ".pre-commit-config.yaml"
       - ".github/workflows/lint-type-test.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "**/*.py"
+      - "pyproject.toml"
+      - ".pre-commit-config.yaml"
+      - ".github/workflows/lint-type-test.yml"
 
 jobs:
   quality:
