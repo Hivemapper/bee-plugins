@@ -1,0 +1,90 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "beeutil"
+version = "0.1.0"
+description = "Utilities for building Bee plugins."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "cryptography>=42.0",
+  "numpy>=1.24",
+  "requests>=2.31",
+]
+
+[dependency-groups]
+dev = [
+  "mypy>=1.8",
+  "paramiko>=3.4",
+  "pre-commit>=3.7",
+  "pytest>=8.0",
+  "ruff>=0.4",
+  "scp>=0.14",
+  "tqdm>=4.66",
+  "types-requests>=2.31",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/beeutil"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/README.md",
+  "/pyproject.toml",
+  "/src/beeutil",
+]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+force-exclude = true
+extend-exclude = [
+  "fixtures",
+  "deploy.py",
+  "device.py",
+  "devtools.py",
+  "src/beeutil/__init__.py",
+  "src/beeutil/image_cache.py",
+  "src/beeutil/secrets.py",
+  "src/plugin/__init__.py",
+  "src/plugin/example.py",
+  "util/__init__.py",
+  "util/state_dump.py",
+  "util/test_secrets.py",
+  "util/upload_secrets.py",
+]
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "PT", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["beeutil", "plugin"]
+
+[tool.pytest.ini_options]
+addopts = ["--import-mode=importlib", "-ra", "--strict-markers"]
+
+[tool.mypy]
+python_version = "3.9"
+files = ["src"]
+mypy_path = ["src"]
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["cryptography.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+  "beeutil",
+  "beeutil.image_cache",
+  "beeutil.secrets",
+  "plugin",
+  "plugin.example",
+]
+ignore_errors = true

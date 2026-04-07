@@ -1,7 +1,0 @@
-argparse
-paramiko
-numpy
-requests
-scp
-tqdm
-pytest
