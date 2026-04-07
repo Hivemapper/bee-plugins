@@ -1,6 +1,0 @@
-argparse
-paramiko
-requests
-scp
-tqdm
-pytest
