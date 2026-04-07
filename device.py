@@ -1,9 +1,9 @@
 import argparse
 import json
+from pprint import pp
+
 import paramiko
 
-from scp import SCPClient
-from pprint import pp
 from util import do_json_get, do_json_post
 
 HOST_IP = '192.168.0.10'

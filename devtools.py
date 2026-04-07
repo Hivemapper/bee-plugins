@@ -1,11 +1,11 @@
 # fmt: off
 import argparse
-import os
+
 import paramiko
+from scp import SCPClient
 
 from util import do_json_post
 from util.state_dump import collect_state_dump
-from scp import SCPClient
 
 HOST_IP = '192.168.0.10'
 HOST = f'http://{HOST_IP}:5000'
@@ -16,7 +16,7 @@ PAUSE_UPDATES_ROUTE = DEVICE_PLUGIN_ROUTE + 'setPausePluginUpdates'
 TEMPLATE_PLUGIN_PATH = '/data/plugins/template-plugin/template-plugin'
 TEMPLATE_PLUGIN_ENV_PATH = '/data/plugins/template-plugin/.env'
 
-CACHE_DIR = '/data/cache';
+CACHE_DIR = '/data/cache'
 
 def run_command_over_ssh(ssh, cmd):
   stdin, stdout, stderr = ssh.exec_command(cmd)

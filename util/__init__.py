@@ -1,14 +1,13 @@
-import re
 import requests
-
 from requests.exceptions import HTTPError
+
 
 def do_json_get(url):
   res = requests.get(url)
 
   try:
     res.raise_for_status()
-  except HTTPError as http_err:
+  except HTTPError:
     try:
       print(res.json())
     except Exception:
@@ -23,7 +22,7 @@ def do_json_post(url, data=None):
 
   try:
     res.raise_for_status()
-  except HTTPError as http_err:
+  except HTTPError:
     try:
       print(res.json())
     except Exception:

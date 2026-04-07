@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-import sys
 import os
+import sys
 import tempfile
+
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import beeutil.secrets as secrets
-from beeutil.secrets import DecryptionError, SecretsError
+from beeutil.secrets import DecryptionError
 
 
 def test_encrypt_decrypt_roundtrip():
