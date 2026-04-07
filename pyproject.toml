@@ -41,18 +41,6 @@ line-length = 100
 force-exclude = true
 extend-exclude = [
   "fixtures",
-  "deploy.py",
-  "device.py",
-  "devtools.py",
-  "src/beeutil/__init__.py",
-  "src/beeutil/image_cache.py",
-  "src/beeutil/secrets.py",
-  "src/plugin/__init__.py",
-  "src/plugin/example.py",
-  "util/__init__.py",
-  "util/state_dump.py",
-  "util/test_secrets.py",
-  "util/upload_secrets.py",
 ]
 
 [tool.ruff.lint]

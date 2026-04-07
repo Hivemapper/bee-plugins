@@ -8,7 +8,7 @@ def image_cache_status():
   if res.status_code != 200:
     raise Exception(res.json())
 
-  return status
+  return status  # noqa: F821
 
 def enable_image_collection():
   res = requests.get(f'{CACHE_ROUTE}/enable')

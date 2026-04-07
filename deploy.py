@@ -1,6 +1,8 @@
 import argparse
 import hashlib
+
 import requests
+
 
 def get_upload_url(plugin_name, plugin_secret):
   url = f'https://beemaps.com/api/plugins/upload/{plugin_name}?secret={plugin_secret}'

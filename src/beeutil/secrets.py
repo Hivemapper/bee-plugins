@@ -16,12 +16,12 @@ import base64
 import json
 import logging
 import os
-import requests
 
+import requests
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes, padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives import hashes, padding
-from cryptography.hazmat.backends import default_backend
 
 SALT = b'hivemapper-plugin-secrets'
 PBKDF2_ITERATIONS = 100000
@@ -94,14 +94,14 @@ def decrypt(plugin_id: str, encrypted_blob: str) -> dict:
 
         return json.loads(plaintext.decode('utf-8'))
     except (KeyError, ValueError, json.JSONDecodeError) as e:
-        raise DecryptionError(f"Malformed encrypted blob: {e}")
+        raise DecryptionError(f"Malformed encrypted blob: {e}") from e
     except Exception as e:
-        raise DecryptionError(f"Decryption failed: {e}")
+        raise DecryptionError(f"Decryption failed: {e}") from e
 
 
 def _parse_dotenv(path: str) -> dict:
     env = {}
-    with open(path, 'r') as f:
+    with open(path) as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith('#'):
@@ -126,7 +126,7 @@ def _fetch_from_odc(plugin_name: str) -> tuple:
     try:
         response = requests.get(url, timeout=10)
     except requests.RequestException as e:
-        raise SecretsNetworkError(f"Failed to reach ODC API: {e}")
+        raise SecretsNetworkError(f"Failed to reach ODC API: {e}") from e
 
     if response.status_code == 404:
         raise SecretsNotFoundError(f"Plugin '{plugin_name}' not found")

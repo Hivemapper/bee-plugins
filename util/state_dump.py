@@ -1,12 +1,14 @@
 import json
-import zipfile
-import requests
-import paramiko
 import shutil
-from pathlib import Path
-from scp import SCPClient
+import zipfile
 from datetime import datetime
+from pathlib import Path
+
+import paramiko
+import requests
+from scp import SCPClient
 from tqdm import tqdm
+
 
 def collect_state_dump(host_ip):
     timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
