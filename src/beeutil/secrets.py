@@ -23,14 +23,14 @@ from cryptography.hazmat.primitives import hashes, padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-SALT = b'hivemapper-plugin-secrets'
+SALT = b"hivemapper-plugin-secrets"
 PBKDF2_ITERATIONS = 100000
 KEY_LENGTH = 32
 IV_LENGTH = 16
 BLOCK_SIZE = 128
 
-PLUGIN_DIR = '/data/plugins'
-ODC_API_BASE = 'http://127.0.0.1:5000/api/1'
+PLUGIN_DIR = "/data/plugins"
+ODC_API_BASE = "http://127.0.0.1:5000/api/1"
 
 logger = logging.getLogger(__name__)
 
@@ -38,14 +38,18 @@ logger = logging.getLogger(__name__)
 class SecretsError(Exception):
     pass
 
+
 class DecryptionError(SecretsError):
     pass
+
 
 class SecretsNetworkError(SecretsError):
     pass
 
+
 class SecretsNotFoundError(SecretsError):
     pass
+
 
 def _derive_key(plugin_id: str) -> bytes:
     kdf = PBKDF2HMAC(
@@ -53,16 +57,16 @@ def _derive_key(plugin_id: str) -> bytes:
         length=KEY_LENGTH,
         salt=SALT,
         iterations=PBKDF2_ITERATIONS,
-        backend=default_backend()
+        backend=default_backend(),
     )
-    return kdf.derive(plugin_id.encode('utf-8'))
+    return kdf.derive(plugin_id.encode("utf-8"))
 
 
 def encrypt(plugin_id: str, env: dict) -> str:
     """Encrypt a dict of KV pairs. Used by deploy tooling."""
     key = _derive_key(plugin_id)
     iv = os.urandom(IV_LENGTH)
-    plaintext = json.dumps(env).encode('utf-8')
+    plaintext = json.dumps(env).encode("utf-8")
 
     padder = padding.PKCS7(BLOCK_SIZE).padder()
     padded = padder.update(plaintext) + padder.finalize()
@@ -72,17 +76,17 @@ def encrypt(plugin_id: str, env: dict) -> str:
     ciphertext = encryptor.update(padded) + encryptor.finalize()
 
     blob = {
-        'iv': base64.b64encode(iv).decode('ascii'),
-        'ciphertext': base64.b64encode(ciphertext).decode('ascii'),
+        "iv": base64.b64encode(iv).decode("ascii"),
+        "ciphertext": base64.b64encode(ciphertext).decode("ascii"),
     }
-    return base64.b64encode(json.dumps(blob).encode('utf-8')).decode('ascii')
+    return base64.b64encode(json.dumps(blob).encode("utf-8")).decode("ascii")
 
 
 def decrypt(plugin_id: str, encrypted_blob: str) -> dict:
     try:
-        blob = json.loads(base64.b64decode(encrypted_blob).decode('utf-8'))
-        iv = base64.b64decode(blob['iv'])
-        ciphertext = base64.b64decode(blob['ciphertext'])
+        blob = json.loads(base64.b64decode(encrypted_blob).decode("utf-8"))
+        iv = base64.b64decode(blob["iv"])
+        ciphertext = base64.b64decode(blob["ciphertext"])
         key = _derive_key(plugin_id)
 
         cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
@@ -92,7 +96,7 @@ def decrypt(plugin_id: str, encrypted_blob: str) -> dict:
         unpadder = padding.PKCS7(BLOCK_SIZE).unpadder()
         plaintext = unpadder.update(padded) + unpadder.finalize()
 
-        return json.loads(plaintext.decode('utf-8'))
+        return json.loads(plaintext.decode("utf-8"))
     except (KeyError, ValueError, json.JSONDecodeError) as e:
         raise DecryptionError(f"Malformed encrypted blob: {e}") from e
     except Exception as e:
@@ -104,11 +108,11 @@ def _parse_dotenv(path: str) -> dict:
     with open(path) as f:
         for line in f:
             line = line.strip()
-            if not line or line.startswith('#'):
+            if not line or line.startswith("#"):
                 continue
-            if '=' not in line:
+            if "=" not in line:
                 continue
-            key, _, value = line.partition('=')
+            key, _, value = line.partition("=")
             key = key.strip()
             value = value.strip()
             if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
@@ -118,11 +122,11 @@ def _parse_dotenv(path: str) -> dict:
 
 
 def _dotenv_path(plugin_name: str) -> str:
-    return os.path.join(PLUGIN_DIR, plugin_name, '.env')
+    return os.path.join(PLUGIN_DIR, plugin_name, ".env")
 
 
 def _fetch_from_odc(plugin_name: str) -> tuple:
-    url = f'{ODC_API_BASE}/plugin/secrets/{plugin_name}'
+    url = f"{ODC_API_BASE}/plugin/secrets/{plugin_name}"
     try:
         response = requests.get(url, timeout=10)
     except requests.RequestException as e:
@@ -134,8 +138,8 @@ def _fetch_from_odc(plugin_name: str) -> tuple:
         raise SecretsNetworkError(f"ODC API error: {response.status_code}")
 
     data = response.json()
-    plugin_id = data.get('_id')
-    encrypted_blob = data.get('encrypted_secrets')
+    plugin_id = data.get("_id")
+    encrypted_blob = data.get("encrypted_secrets")
 
     if not plugin_id or not encrypted_blob:
         raise SecretsNotFoundError("ODC response missing _id or encrypted_secrets")
@@ -191,4 +195,3 @@ def get(plugin_name: str, key: str) -> str:
 
 def load(plugin_name: str) -> dict:
     return dict(_load(plugin_name))
-
