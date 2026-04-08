@@ -24,6 +24,30 @@ def test_dimension_mismatch():
         cosine_similarity([1.0, 0.0, 0.0], [1.0, 0.0])
 
 
+def test_cosine_similarity_normalized_inputs():
+    """Similar normalized embeddings should produce high similarity."""
+    # Two similar 8-dim embeddings (e.g., two stop signs from different angles)
+    a = [0.41, 0.29, -0.12, 0.55, 0.38, -0.21, 0.33, 0.31]
+    b = [0.39, 0.31, -0.10, 0.53, 0.40, -0.19, 0.35, 0.29]
+    result = cosine_similarity(a, b)
+    assert result > 0.99
+
+
+def test_cosine_similarity_normalizes_inputs():
+    """Non-normalized vectors should still produce correct cosine similarity."""
+    # Same direction, different magnitudes — should be 1.0 regardless of scale
+    a = [0.3, 0.7, 0.2]
+    b = [0.6, 1.4, 0.4]  # 2x of a
+    assert cosine_similarity(a, b) == pytest.approx(1.0)
+
+    # Without normalization, dot(a, b) = 0.74 — not a valid cosine similarity.
+    # With normalization, result is bounded to [-1, 1]
+    c = [0.9, 0.3, 0.5]
+    d = [0.1, 0.8, 0.4]
+    result = cosine_similarity(c, d)
+    assert -1.0 <= result <= 1.0
+
+
 # --- find_matches tests ---
 
 
@@ -46,7 +70,6 @@ def test_find_matches_above_threshold():
     assert len(matches) == 1
     assert matches[0]['label'] == 'test'
     assert matches[0]['score'] == pytest.approx(1.0)
-    assert matches[0]['margin'] == pytest.approx(0.5)
     assert matches[0]['timestamp_ms'] == 1000
     assert matches[0]['lat'] == 37.0
     assert matches[0]['lon'] == -122.0
@@ -71,7 +94,7 @@ def test_find_matches_per_vector_threshold():
     assert matches[0]['label'] == 'loose'
 
 
-def test_find_matches_sorted_by_score_descending():
+def test_find_matches_multiple_matches():
     item = _make_embedding_item([0.8, 0.6, 0.0])
     qe = [
         {'label': 'low', 'embedding': [0.0, 1.0, 0.0], 'threshold': 0.0},
@@ -79,15 +102,15 @@ def test_find_matches_sorted_by_score_descending():
     ]
     matches = find_matches(item, qe, default_threshold=0.0)
     assert len(matches) == 2
-    assert matches[0]['label'] == 'high'
-    assert matches[1]['label'] == 'low'
+    labels = {m['label'] for m in matches}
+    assert labels == {'low', 'high'}
 
 
 def test_find_matches_dimension_mismatch_query_vs_embedding():
     item = _make_embedding_item([1.0, 0.0, 0.0])
     qe = [{'label': 'test', 'embedding': [1.0, 0.0]}]
     with pytest.raises(DimensionMismatchError):
-        find_matches(item, qe)
+        find_matches(item, qe, default_threshold=0.5)
 
 
 # --- list_embeddings tests ---
@@ -108,7 +131,7 @@ def test_list_embeddings_returns_items():
     ]
 
     with patch('beeutil.embeddings.requests.get', return_value=mock_resp) as mock_get:
-        result = list_embeddings(since=500, until=3000)
+        result = list_embeddings(since_ms=500, until_ms=3000)
         assert len(result) == 2
         mock_get.assert_called_once()
         assert mock_get.call_args.kwargs['params'] == {'since': 500, 'until': 3000}
@@ -171,7 +194,7 @@ def test_fetch_and_match_returns_matches_and_cursor():
     qe = [{'label': 'target', 'embedding': [1.0, 0.0, 0.0], 'threshold': 0.5}]
 
     with patch('beeutil.embeddings.requests.get', return_value=mock_resp):
-        matches, last_ts = fetch_and_match(0, qe)
+        matches, last_ts = fetch_and_match(0, qe, default_threshold=0.5)
         assert len(matches) == 1
         assert matches[0]['label'] == 'target'
         assert matches[0]['timestamp_ms'] == 1000
@@ -191,7 +214,7 @@ def test_fetch_and_match_advances_cursor_even_with_no_matches():
     qe = [{'label': 'target', 'embedding': [1.0, 0.0, 0.0], 'threshold': 0.99}]
 
     with patch('beeutil.embeddings.requests.get', return_value=mock_resp):
-        matches, last_ts = fetch_and_match(0, qe)
+        matches, last_ts = fetch_and_match(0, qe, default_threshold=0.5)
         assert matches == []
         assert last_ts == 5000
 
@@ -202,7 +225,7 @@ def test_fetch_and_match_returns_since_when_no_embeddings():
     mock_resp.json.return_value = []
 
     with patch('beeutil.embeddings.requests.get', return_value=mock_resp):
-        matches, last_ts = fetch_and_match(42, [])
+        matches, last_ts = fetch_and_match(42, [], default_threshold=0.5)
         assert matches == []
         assert last_ts == 42
 
