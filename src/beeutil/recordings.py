@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-import logging
-
 import requests
 
 from ._constants import ODC_API_BASE
-
-logger = logging.getLogger(__name__)
 
 TIMEOUT = 10
 
@@ -18,10 +14,7 @@ class RecordingsError(Exception):
 
 
 def get_videos_by_timerange(start_ms: int, end_ms: int) -> list[str]:
-    """Find video files covering a time range.
-
-    Returns file path strings. Returns [] if no videos found.
-    """
+    """Find video files covering a time range."""
     url = (
         f'{ODC_API_BASE}/recordings/video'
         f'/query-by-timestamp-ms/{start_ms}/{end_ms}'
@@ -41,9 +34,8 @@ def get_videos_by_timerange(start_ms: int, end_ms: int) -> list[str]:
     except ValueError as e:
         raise RecordingsError('Invalid JSON response from odc-api') from e
 
-    if not isinstance(data, dict):
-        raise RecordingsError(
-            f'Expected dict from odc-api, got {type(data).__name__}',
-        )
+    files = data.get('files') if isinstance(data, dict) else None
+    if not isinstance(files, list):
+        raise RecordingsError('Response missing files list')
 
-    return data.get('files', [])
+    return files
