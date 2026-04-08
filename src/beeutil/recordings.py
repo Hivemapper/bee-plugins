@@ -13,8 +13,8 @@ class RecordingsError(Exception):
     """Error querying recordings."""
 
 
-def get_videos_by_timerange(start_ms: int, end_ms: int) -> list[str]:
-    """Find video files covering a time range."""
+def get_video_paths_by_timerange(start_ms: int, end_ms: int) -> list[str]:
+    """Return absolute file paths to videos within a time range."""
     url = (
         f'{ODC_API_BASE}/recordings/video'
         f'/query-by-timestamp-ms/{start_ms}/{end_ms}'
