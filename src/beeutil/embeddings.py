@@ -72,7 +72,7 @@ def fetch_and_match(
     if not items:
         return ([], since)
 
-    last_timestamp_ms = items[-1]['timestamp_ms']
+    last_timestamp_ms = max(item['timestamp_ms'] for item in items)
     all_matches = []
 
     for item in items:
@@ -84,7 +84,7 @@ def fetch_and_match(
 
 
 def cosine_similarity(a: list[float], b: list[float]) -> float:
-    """Dot product of two L2-normalized vectors."""
+    """Dot product of two vectors. Assumes inputs are L2-normalized."""
     if len(a) != len(b):
         raise DimensionMismatchError(
             f'Vector dimensions do not match: {len(a)} vs {len(b)}',
@@ -101,7 +101,7 @@ def find_matches(
 
     Returns matches above threshold, sorted by score descending.
     """
-    embedding_vector = embedding_item['data']['embedding']
+    embedding_vector = embedding_item['embeddings']
     matches = []
 
     for qe in query_embeddings:
@@ -113,9 +113,9 @@ def find_matches(
                 'score': score,
                 'margin': score - threshold,
                 'timestamp_ms': embedding_item['timestamp_ms'],
-                'lat': embedding_item['data']['lat'],
-                'lon': embedding_item['data']['lon'],
-                'filename': embedding_item['filename'],
+                'lat': embedding_item['lat'],
+                'lon': embedding_item['lon'],
+                'image_name': embedding_item['image_name'],
             })
 
     matches.sort(key=lambda m: m['score'], reverse=True)
@@ -123,8 +123,27 @@ def find_matches(
 
 
 def load_query_embeddings(plugin_name: str) -> list[dict]:
-    """Load query embeddings from the device.
+    """Load query embeddings from the plugin data store."""
+    try:
+        resp = requests.get(
+            f'{ODC_API_BASE}/plugin/dataStore/{plugin_name}/queryEmbeddings',
+            timeout=TIMEOUT,
+        )
+    except requests.RequestException as e:
+        raise EmbeddingsError(f'Failed to reach odc-api: {e}') from e
 
-    Blocked on CAP-103 — endpoint TBD.
-    """
-    raise EmbeddingsError('load_query_embeddings not yet implemented')
+    if resp.status_code != 200:
+        raise EmbeddingsError(
+            f'odc-api error {resp.status_code}: {resp.text}',
+        )
+
+    try:
+        data = resp.json()
+    except ValueError as e:
+        raise EmbeddingsError('Invalid JSON response') from e
+
+    items = data.get('queryEmbeddings')
+    if not isinstance(items, list):
+        raise EmbeddingsError('Response missing queryEmbeddings list')
+
+    return items

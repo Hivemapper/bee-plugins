@@ -32,8 +32,10 @@ def _make_embedding_item(
 ):
     return {
         'timestamp_ms': ts,
-        'filename': filename,
-        'data': {'embedding': embedding, 'lat': lat, 'lon': lon},
+        'image_name': filename,
+        'embeddings': embedding,
+        'lat': lat,
+        'lon': lon,
     }
 
 
@@ -48,7 +50,7 @@ def test_find_matches_above_threshold():
     assert matches[0]['timestamp_ms'] == 1000
     assert matches[0]['lat'] == 37.0
     assert matches[0]['lon'] == -122.0
-    assert matches[0]['filename'] == 'test.json'
+    assert matches[0]['image_name'] == 'test.json'
 
 
 def test_find_matches_below_threshold():
@@ -96,20 +98,20 @@ def test_list_embeddings_returns_items():
     mock_resp.status_code = 200
     mock_resp.json.return_value = [
         {
-            'filename': '1000.json', 'timestamp_ms': 1000,
-            'data': {'lat': 37.0, 'lon': -122.0, 'embedding': [0.1]},
+            'image_name': '1000.json', 'timestamp_ms': 1000,
+            'lat': 37.0, 'lon': -122.0, 'embeddings': [0.1],
         },
         {
-            'filename': '2000.json', 'timestamp_ms': 2000,
-            'data': {'lat': 37.1, 'lon': -122.1, 'embedding': [0.3]},
+            'image_name': '2000.json', 'timestamp_ms': 2000,
+            'lat': 37.1, 'lon': -122.1, 'embeddings': [0.3],
         },
     ]
 
-    with patch('beeutil.embeddings.requests.get', return_value=mock_resp):
+    with patch('beeutil.embeddings.requests.get', return_value=mock_resp) as mock_get:
         result = list_embeddings(since=500, until=3000)
         assert len(result) == 2
-        assert result[0]['timestamp_ms'] == 1000
-        assert result[1]['timestamp_ms'] == 2000
+        mock_get.assert_called_once()
+        assert mock_get.call_args.kwargs['params'] == {'since': 500, 'until': 3000}
 
 
 def test_list_embeddings_raises_on_non_200():
@@ -156,18 +158,14 @@ def test_fetch_and_match_returns_matches_and_cursor():
     mock_resp.status_code = 200
     mock_resp.json.return_value = [
         {
-            'filename': 'a.json', 'timestamp_ms': 1000,
-            'data': {
-                'lat': 37.0, 'lon': -122.0,
-                'embedding': [1.0, 0.0, 0.0],
-            },
+            'image_name': 'a.json', 'timestamp_ms': 1000,
+            'lat': 37.0, 'lon': -122.0,
+            'embeddings': [1.0, 0.0, 0.0],
         },
         {
-            'filename': 'b.json', 'timestamp_ms': 2000,
-            'data': {
-                'lat': 37.1, 'lon': -122.1,
-                'embedding': [0.0, 1.0, 0.0],
-            },
+            'image_name': 'b.json', 'timestamp_ms': 2000,
+            'lat': 37.1, 'lon': -122.1,
+            'embeddings': [0.0, 1.0, 0.0],
         },
     ]
     qe = [{'label': 'target', 'embedding': [1.0, 0.0, 0.0], 'threshold': 0.5}]
@@ -185,11 +183,9 @@ def test_fetch_and_match_advances_cursor_even_with_no_matches():
     mock_resp.status_code = 200
     mock_resp.json.return_value = [
         {
-            'filename': 'a.json', 'timestamp_ms': 5000,
-            'data': {
-                'lat': 37.0, 'lon': -122.0,
-                'embedding': [0.0, 1.0, 0.0],
-            },
+            'image_name': 'a.json', 'timestamp_ms': 5000,
+            'lat': 37.0, 'lon': -122.0,
+            'embeddings': [0.0, 1.0, 0.0],
         },
     ]
     qe = [{'label': 'target', 'embedding': [1.0, 0.0, 0.0], 'threshold': 0.99}]
@@ -214,6 +210,39 @@ def test_fetch_and_match_returns_since_when_no_embeddings():
 # --- load_query_embeddings tests ---
 
 
-def test_load_query_embeddings_raises_not_implemented():
-    with pytest.raises(EmbeddingsError, match='not yet implemented'):
+def test_load_query_embeddings_returns_items():
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        'queryEmbeddings': [{'label': 'stop', 'embedding': [1.0]}],
+    }
+
+    with patch('beeutil.embeddings.requests.get', return_value=mock_resp) as mock_get:
+        result = load_query_embeddings('my-plugin')
+        assert len(result) == 1
+        assert result[0]['label'] == 'stop'
+        assert 'my-plugin' in mock_get.call_args.args[0]
+
+
+def test_load_query_embeddings_raises_on_non_200():
+    mock_resp = MagicMock()
+    mock_resp.status_code = 404
+    mock_resp.text = 'not found'
+
+    with (
+        patch('beeutil.embeddings.requests.get', return_value=mock_resp),
+        pytest.raises(EmbeddingsError, match='404'),
+    ):
+        load_query_embeddings('my-plugin')
+
+
+def test_load_query_embeddings_raises_on_missing_key():
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {'other': 'data'}
+
+    with (
+        patch('beeutil.embeddings.requests.get', return_value=mock_resp),
+        pytest.raises(EmbeddingsError, match='queryEmbeddings'),
+    ):
         load_query_embeddings('my-plugin')
