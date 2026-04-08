@@ -11,11 +11,22 @@ LOOP_DELAY = 5
 UPLOAD_THREADS = 1
 VERBOSE = True
 
+# Run a device health check every N loop iterations
+HEALTH_CHECK_INTERVAL = 60
+
+
 def vlog(msg):
   if VERBOSE:
     print(f'[{time.asctime()}] {msg}')
 
 def _setup(state):
+  # Check device health before starting (detects CAP-96 clock drift, GPS issues)
+  vlog('running device health check')
+  health = beeutil.device_health.check()
+  if not health['healthy']:
+    for w in health['warnings']:
+      vlog(f'HEALTH WARNING: {w}')
+
   vlog('enabling image caching')
   beeutil.enable_image_collection()
 
@@ -50,10 +61,19 @@ def _setup(state):
 
   state['threads'] = [threading.Thread(target=upload_worker, daemon=True).start() for i in range(UPLOAD_THREADS)]
   state['uploadQueue'] = queue.Queue()
+  state['loop_count'] = 0
 
 def _loop(state):
+  # Periodic health check
+  state['loop_count'] += 1
+  if state['loop_count'] % HEALTH_CHECK_INTERVAL == 0:
+    health = beeutil.device_health.check()
+    if not health['healthy']:
+      for w in health['warnings']:
+        vlog(f'HEALTH WARNING: {w}')
+
   contents = beeutil.list_contents(state['last_checked'])
-  
+
   if len(contents) == 0:
     vlog(f'no new content since {state["last_checked"]}')
     return
@@ -72,6 +92,7 @@ def main():
     'session': '',
     'threads': None,
     'uploadQueue': None,
+    'loop_count': 0,
   }
 
   vlog('setting up plugin')
