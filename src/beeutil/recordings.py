@@ -3,8 +3,15 @@
 from __future__ import annotations
 
 import requests
+from typing_extensions import TypedDict
 
 from ._constants import ODC_API_BASE
+
+
+class VideoFile(TypedDict):
+    filepath: str
+    filename: str
+    timestamp_ms: int
 
 TIMEOUT = 10
 
@@ -13,8 +20,8 @@ class RecordingsError(Exception):
     """Error querying recordings."""
 
 
-def get_video_paths_by_timerange(start_ms: int, end_ms: int) -> list[str]:
-    """Return absolute file paths to videos within a time range."""
+def get_videos_by_timerange(start_ms: int, end_ms: int) -> list[VideoFile]:
+    """Return video files within a time range."""
     url = (
         f'{ODC_API_BASE}/recordings/video'
         f'/query-by-timestamp-ms/{start_ms}/{end_ms}'
@@ -34,8 +41,15 @@ def get_video_paths_by_timerange(start_ms: int, end_ms: int) -> list[str]:
     except ValueError as e:
         raise RecordingsError('Invalid JSON response from odc-api') from e
 
-    files = data.get('files') if isinstance(data, dict) else None
-    if not isinstance(files, list):
+    paths = data.get('files') if isinstance(data, dict) else None
+    if not isinstance(paths, list):
         raise RecordingsError('Response missing files list')
 
-    return files
+    return [
+        {
+            "filepath": item["filepath"],
+            "filename": item["filepath"].rsplit("/", 1)[-1],
+            "timestamp_ms": item["timestamp_ms"],
+        }
+        for item in paths
+    ]
