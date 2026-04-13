@@ -5,80 +5,86 @@ import uuid
 
 import beeutil
 
-PLUGIN_NAME = 'your-plugin-name'
+PLUGIN_NAME = "your-plugin-name"
 
 CAPTURE_STEREO = False
 LOOP_DELAY = 5
 UPLOAD_THREADS = 1
 VERBOSE = True
 
+
 def vlog(msg):
-  if VERBOSE:
-    print(f'[{time.asctime()}] {msg}')
+    if VERBOSE:
+        print(f"[{time.asctime()}] {msg}")
+
 
 def _setup(state):
-  vlog('enabling image caching')
-  beeutil.enable_image_collection()
+    vlog("enabling image caching")
+    beeutil.enable_image_collection()
 
-  if CAPTURE_STEREO:
-    vlog('enabling stereo caching')
-    beeutil.enable_stereo_collection()
+    if CAPTURE_STEREO:
+        vlog("enabling stereo caching")
+        beeutil.enable_stereo_collection()
 
-  state['session'] = str(uuid.uuid1())
+    state["session"] = str(uuid.uuid1())
 
-  vlog('loading env')
-  try:
-    beeutil.secrets.load(PLUGIN_NAME)
-    vlog('env loaded')
-  except beeutil.SecretsError as e:
-    vlog(f'ERROR: Failed to load env: {e}')
-    raise
+    vlog("loading env")
+    try:
+        beeutil.secrets.load(PLUGIN_NAME)
+        vlog("env loaded")
+    except beeutil.SecretsError as e:
+        vlog(f"ERROR: Failed to load env: {e}")
+        raise
 
-  vlog(f'initializing {UPLOAD_THREADS} upload workers')
-  state['uploadQueue'] = queue.Queue()
+    vlog(f"initializing {UPLOAD_THREADS} upload workers")
+    state["uploadQueue"] = queue.Queue()
 
-  def upload_worker():
-    while True:
-      handle = state['uploadQueue'].get()
-      beeutil.upload_to_s3(
-        state['session'],
-        handle,
-        beeutil.secrets.get(PLUGIN_NAME, 'AWS_BUCKET'),
-        beeutil.secrets.get(PLUGIN_NAME, 'AWS_REGION'),
-        beeutil.secrets.get(PLUGIN_NAME, 'AWS_SECRET'),
-        beeutil.secrets.get(PLUGIN_NAME, 'AWS_KEY'),
-      )
+    def upload_worker():
+        while True:
+            handle = state["uploadQueue"].get()
+            beeutil.upload_to_s3(
+                state["session"],
+                handle,
+                beeutil.secrets.get(PLUGIN_NAME, "AWS_BUCKET"),
+                beeutil.secrets.get(PLUGIN_NAME, "AWS_REGION"),
+                beeutil.secrets.get(PLUGIN_NAME, "AWS_SECRET"),
+                beeutil.secrets.get(PLUGIN_NAME, "AWS_KEY"),
+            )
 
-  state['threads'] = [threading.Thread(target=upload_worker, daemon=True).start() for i in range(UPLOAD_THREADS)]
-  state['uploadQueue'] = queue.Queue()
+    state["threads"] = [
+        threading.Thread(target=upload_worker, daemon=True).start() for i in range(UPLOAD_THREADS)
+    ]
+    state["uploadQueue"] = queue.Queue()
+
 
 def _loop(state):
-  contents = beeutil.list_contents(state['last_checked'])
-  
-  if len(contents) == 0:
-    vlog(f'no new content since {state["last_checked"]}')
-    return
+    contents = beeutil.list_contents(state["last_checked"])
 
-  vlog(f'since {state["last_checked"]}:')
-  vlog(contents)
+    if len(contents) == 0:
+        vlog(f"no new content since {state['last_checked']}")
+        return
 
-  for handle in contents:
-    state['uploadQueue'].put(handle)
+    vlog(f"since {state['last_checked']}:")
+    vlog(contents)
 
-  state['last_checked'] = contents[-1].split('_')[0]
+    for handle in contents:
+        state["uploadQueue"].put(handle)
+
+    state["last_checked"] = contents[-1].split("_")[0]
+
 
 def main():
-  state = {
-    'last_checked': None,
-    'session': '',
-    'threads': None,
-    'uploadQueue': None,
-  }
+    state = {
+        "last_checked": None,
+        "session": "",
+        "threads": None,
+        "uploadQueue": None,
+    }
 
-  vlog('setting up plugin')
-  _setup(state)
+    vlog("setting up plugin")
+    _setup(state)
 
-  vlog('initializing run loop')
-  while True:
-    _loop(state)
-    time.sleep(LOOP_DELAY)
+    vlog("initializing run loop")
+    while True:
+        _loop(state)
+        time.sleep(LOOP_DELAY)

@@ -58,10 +58,7 @@ addopts = ["--import-mode=importlib", "-ra", "--strict-markers"]
 python_version = "3.9"
 files = ["src"]
 mypy_path = ["src"]
-check_untyped_defs = true
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
+strict = true
 
 [[tool.mypy.overrides]]
 module = ["cryptography.*"]

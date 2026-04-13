@@ -5,7 +5,7 @@ import tempfile
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import beeutil.secrets as secrets
 from beeutil.secrets import DecryptionError
@@ -49,25 +49,25 @@ def test_empty_env():
 
 
 def test_parse_dotenv():
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.env', delete=False) as f:
-        f.write('# comment line\n')
-        f.write('AWS_KEY=AKIAIOSFODNN7EXAMPLE\n')
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".env", delete=False) as f:
+        f.write("# comment line\n")
+        f.write("AWS_KEY=AKIAIOSFODNN7EXAMPLE\n")
         f.write('AWS_SECRET="quoted value"\n')
         f.write("SINGLE_QUOTED='single'\n")
-        f.write('EMPTY=\n')
-        f.write('\n')
-        f.write('NO_EQUALS_LINE\n')
-        f.write('  SPACED_KEY = spaced_value \n')
+        f.write("EMPTY=\n")
+        f.write("\n")
+        f.write("NO_EQUALS_LINE\n")
+        f.write("  SPACED_KEY = spaced_value \n")
         path = f.name
 
     try:
         env = secrets._parse_dotenv(path)
-        assert env['AWS_KEY'] == 'AKIAIOSFODNN7EXAMPLE'
-        assert env['AWS_SECRET'] == 'quoted value'
-        assert env['SINGLE_QUOTED'] == 'single'
-        assert env['EMPTY'] == ''
-        assert 'SPACED_KEY' in env
-        assert 'NO_EQUALS_LINE' not in env
+        assert env["AWS_KEY"] == "AKIAIOSFODNN7EXAMPLE"
+        assert env["AWS_SECRET"] == "quoted value"
+        assert env["SINGLE_QUOTED"] == "single"
+        assert env["EMPTY"] == ""
+        assert "SPACED_KEY" in env
+        assert "NO_EQUALS_LINE" not in env
         print(f"  parsed {len(env)} keys")
         return True
     finally:
@@ -82,15 +82,15 @@ def test_atomic_rejects_non_string():
         secrets.PLUGIN_DIR = tmpdir
 
         try:
-            plugin_dir = os.path.join(tmpdir, 'bad-plugin')
+            plugin_dir = os.path.join(tmpdir, "bad-plugin")
             os.makedirs(plugin_dir)
-            with open(os.path.join(plugin_dir, '.env'), 'w') as f:
-                f.write('GOOD=value\n')
+            with open(os.path.join(plugin_dir, ".env"), "w") as f:
+                f.write("GOOD=value\n")
 
-            secrets.load('bad-plugin')
-            assert os.environ.get('GOOD') == 'value'
+            secrets.load("bad-plugin")
+            assert os.environ.get("GOOD") == "value"
 
-            del os.environ['GOOD']
+            del os.environ["GOOD"]
             return True
         finally:
             secrets.PLUGIN_DIR = orig_dir
@@ -105,19 +105,19 @@ def test_get_from_dotenv():
         secrets.PLUGIN_DIR = tmpdir
 
         try:
-            plugin_dir = os.path.join(tmpdir, 'test-plugin')
+            plugin_dir = os.path.join(tmpdir, "test-plugin")
             os.makedirs(plugin_dir)
-            with open(os.path.join(plugin_dir, '.env'), 'w') as f:
-                f.write('MY_KEY=my_value\nMY_SECRET=my_secret\n')
+            with open(os.path.join(plugin_dir, ".env"), "w") as f:
+                f.write("MY_KEY=my_value\nMY_SECRET=my_secret\n")
 
-            assert secrets.get('test-plugin', 'MY_KEY') == 'my_value'
-            assert secrets.get('test-plugin', 'MY_SECRET') == 'my_secret'
+            assert secrets.get("test-plugin", "MY_KEY") == "my_value"
+            assert secrets.get("test-plugin", "MY_SECRET") == "my_secret"
 
             with pytest.raises(KeyError):
-                secrets.get('test-plugin', 'MISSING')
+                secrets.get("test-plugin", "MISSING")
 
-            del os.environ['MY_KEY']
-            del os.environ['MY_SECRET']
+            del os.environ["MY_KEY"]
+            del os.environ["MY_SECRET"]
             return True
         finally:
             secrets.PLUGIN_DIR = orig_dir
@@ -132,22 +132,20 @@ def test_load_returns_copy():
         secrets.PLUGIN_DIR = tmpdir
 
         try:
-            plugin_dir = os.path.join(tmpdir, 'copy-plugin')
+            plugin_dir = os.path.join(tmpdir, "copy-plugin")
             os.makedirs(plugin_dir)
-            with open(os.path.join(plugin_dir, '.env'), 'w') as f:
-                f.write('A=1\nB=2\n')
+            with open(os.path.join(plugin_dir, ".env"), "w") as f:
+                f.write("A=1\nB=2\n")
 
-            result = secrets.load('copy-plugin')
-            assert result == {'A': '1', 'B': '2'}
+            result = secrets.load("copy-plugin")
+            assert result == {"A": "1", "B": "2"}
 
-            result['C'] = '3'
-            assert 'C' not in secrets.load('copy-plugin')
+            result["C"] = "3"
+            assert "C" not in secrets.load("copy-plugin")
 
-            del os.environ['A']
-            del os.environ['B']
+            del os.environ["A"]
+            del os.environ["B"]
             return True
         finally:
             secrets.PLUGIN_DIR = orig_dir
             secrets.clear_cache()
-
-
