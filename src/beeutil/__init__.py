@@ -1,4 +1,5 @@
-from . import secrets
+from . import embeddings, recordings, secrets
+from .embeddings import DimensionMismatchError, EmbeddingsError
 from .image_cache import (
     disable_image_collection,
     disable_stereo_collection,
@@ -9,6 +10,7 @@ from .image_cache import (
     purge_data,
     upload_to_s3,
 )
+from .recordings import RecordingsError
 from .secrets import DecryptionError, SecretsError, SecretsNetworkError, SecretsNotFoundError
 
 __all__ = [
@@ -25,4 +27,9 @@ __all__ = [
     "DecryptionError",
     "SecretsNetworkError",
     "SecretsNotFoundError",
+    "embeddings",
+    "recordings",
+    "EmbeddingsError",
+    "DimensionMismatchError",
+    "RecordingsError",
 ]
