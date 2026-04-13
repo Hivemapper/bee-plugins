@@ -39,9 +39,9 @@ def get_videos_by_timerange(start_ms: int, end_ms: int) -> list[VideoFile]:
     except ValueError as e:
         raise RecordingsError("Invalid JSON response from odc-api") from e
 
-    paths = data.get("files") if isinstance(data, dict) else None
-    if not isinstance(paths, list):
-        raise RecordingsError("Response missing files list")
+    videos = data.get("videos") if isinstance(data, dict) else None
+    if not isinstance(videos, list):
+        raise RecordingsError("Response missing videos list")
 
     return [
         {
@@ -49,5 +49,5 @@ def get_videos_by_timerange(start_ms: int, end_ms: int) -> list[VideoFile]:
             "filename": item["filepath"].rsplit("/", 1)[-1],
             "timestamp_ms": item["timestamp_ms"],
         }
-        for item in paths
+        for item in videos
     ]

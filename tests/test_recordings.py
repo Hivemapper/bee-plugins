@@ -13,7 +13,7 @@ def test_returns_file_paths():
     mock_resp = MagicMock()
     mock_resp.status_code = 200
     mock_resp.json.return_value = {
-        "files": [
+        "videos": [
             {"filepath": "/data/video/100.mp4", "timestamp_ms": 100},
             {"filepath": "/data/video/110.mp4", "timestamp_ms": 110},
         ],
@@ -39,7 +39,7 @@ def test_returns_file_paths():
 def test_returns_empty_list_when_no_videos():
     mock_resp = MagicMock()
     mock_resp.status_code = 200
-    mock_resp.json.return_value = {"files": []}
+    mock_resp.json.return_value = {"videos": []}
 
     with patch("beeutil.recordings.requests.get", return_value=mock_resp):
         result = get_videos_by_timerange(0, 100)
