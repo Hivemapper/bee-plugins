@@ -13,6 +13,7 @@ class VideoFile(TypedDict):
     filename: str
     timestamp_ms: int
 
+
 TIMEOUT = 10
 
 
@@ -22,28 +23,25 @@ class RecordingsError(Exception):
 
 def get_videos_by_timerange(start_ms: int, end_ms: int) -> list[VideoFile]:
     """Return video files within a time range."""
-    url = (
-        f'{ODC_API_BASE}/recordings/video'
-        f'/query-by-timestamp-ms/{start_ms}/{end_ms}'
-    )
+    url = f"{ODC_API_BASE}/recordings/video/query-by-timestamp-ms/{start_ms}/{end_ms}"
     try:
         resp = requests.get(url, timeout=TIMEOUT)
     except requests.RequestException as e:
-        raise RecordingsError(f'Failed to reach odc-api: {e}') from e
+        raise RecordingsError(f"Failed to reach odc-api: {e}") from e
 
     if resp.status_code != 200:
         raise RecordingsError(
-            f'odc-api error {resp.status_code}: {resp.text}',
+            f"odc-api error {resp.status_code}: {resp.text}",
         )
 
     try:
         data = resp.json()
     except ValueError as e:
-        raise RecordingsError('Invalid JSON response from odc-api') from e
+        raise RecordingsError("Invalid JSON response from odc-api") from e
 
-    paths = data.get('files') if isinstance(data, dict) else None
+    paths = data.get("files") if isinstance(data, dict) else None
     if not isinstance(paths, list):
-        raise RecordingsError('Response missing files list')
+        raise RecordingsError("Response missing files list")
 
     return [
         {
