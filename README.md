@@ -5,7 +5,7 @@ Develop realtime mapping and edge AI solutions with the Bee
 
 Bee devices run **Python 3.8** with pre-installed system packages (numpy 1.17, requests 2.23, cryptography 2.8). All code in `beeutil` must be compatible with Python 3.8 syntax and stdlib. Ruff is configured with `target-version = "py38"` to enforce this.
 
-Plugins are packaged as zipapps and cannot install additional packages on device. Only use dependencies that are already available on the device or bundled into the zipapp.
+Plugins are packaged as zipapps. Additional packages can be bundled into the zipapp via `pip install -t src/`, but this increases the plugin size and should be avoided when possible. Prefer using packages already available on the device.
 
 ## Installation
 ```bash
