@@ -152,11 +152,9 @@ def test_list_embeddings_raises_on_non_200():
     mock_resp.status_code = 500
     mock_resp.text = "error"
 
-    with (
-        patch("beeutil.embeddings.requests.get", return_value=mock_resp),
-        pytest.raises(EmbeddingsError),
-    ):
-        list_embeddings()
+    with patch("beeutil.embeddings.requests.get", return_value=mock_resp):
+        with pytest.raises(EmbeddingsError):
+            list_embeddings()
 
 
 def test_list_embeddings_raises_on_non_list_response():
@@ -164,11 +162,9 @@ def test_list_embeddings_raises_on_non_list_response():
     mock_resp.status_code = 200
     mock_resp.json.return_value = {"error": "something went wrong"}
 
-    with (
-        patch("beeutil.embeddings.requests.get", return_value=mock_resp),
-        pytest.raises(EmbeddingsError, match="Expected list"),
-    ):
-        list_embeddings()
+    with patch("beeutil.embeddings.requests.get", return_value=mock_resp):
+        with pytest.raises(EmbeddingsError, match="Expected list"):
+            list_embeddings()
 
 
 def test_list_embeddings_raises_on_invalid_json():
@@ -176,11 +172,9 @@ def test_list_embeddings_raises_on_invalid_json():
     mock_resp.status_code = 200
     mock_resp.json.side_effect = ValueError("No JSON")
 
-    with (
-        patch("beeutil.embeddings.requests.get", return_value=mock_resp),
-        pytest.raises(EmbeddingsError, match="Invalid JSON"),
-    ):
-        list_embeddings()
+    with patch("beeutil.embeddings.requests.get", return_value=mock_resp):
+        with pytest.raises(EmbeddingsError, match="Invalid JSON"):
+            list_embeddings()
 
 
 # --- fetch_and_match tests ---
@@ -268,11 +262,9 @@ def test_load_query_embeddings_raises_on_non_200():
     mock_resp.status_code = 404
     mock_resp.text = "not found"
 
-    with (
-        patch("beeutil.embeddings.requests.get", return_value=mock_resp),
-        pytest.raises(EmbeddingsError, match="404"),
-    ):
-        load_query_embeddings("my-plugin")
+    with patch("beeutil.embeddings.requests.get", return_value=mock_resp):
+        with pytest.raises(EmbeddingsError, match="404"):
+            load_query_embeddings("my-plugin")
 
 
 def test_load_query_embeddings_raises_on_missing_key():
@@ -280,8 +272,6 @@ def test_load_query_embeddings_raises_on_missing_key():
     mock_resp.status_code = 200
     mock_resp.json.return_value = {"other": "data"}
 
-    with (
-        patch("beeutil.embeddings.requests.get", return_value=mock_resp),
-        pytest.raises(EmbeddingsError, match="queryEmbeddings"),
-    ):
-        load_query_embeddings("my-plugin")
+    with patch("beeutil.embeddings.requests.get", return_value=mock_resp):
+        with pytest.raises(EmbeddingsError, match="queryEmbeddings"):
+            load_query_embeddings("my-plugin")

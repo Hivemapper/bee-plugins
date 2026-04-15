@@ -51,8 +51,6 @@ def test_raises_on_non_200():
     mock_resp.status_code = 500
     mock_resp.text = "Internal Server Error"
 
-    with (
-        patch("beeutil.recordings.requests.get", return_value=mock_resp),
-        pytest.raises(RecordingsError),
-    ):
-        get_videos_by_timerange(0, 100)
+    with patch("beeutil.recordings.requests.get", return_value=mock_resp):
+        with pytest.raises(RecordingsError):
+            get_videos_by_timerange(0, 100)
