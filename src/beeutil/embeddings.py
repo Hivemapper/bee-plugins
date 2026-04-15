@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from typing import TypedDict
+
 import numpy as np
 import requests
-from typing_extensions import NotRequired, TypedDict
 
 from ._constants import ODC_API_BASE
 
@@ -12,7 +13,7 @@ from ._constants import ODC_API_BASE
 class QueryEmbedding(TypedDict):
     label: str
     embedding: list[float]
-    threshold: NotRequired[float]
+    threshold: float
 
 
 class FrameEmbedding(TypedDict):
