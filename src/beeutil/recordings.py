@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from typing import TypedDict
+
 import requests
-from typing_extensions import TypedDict
 
 from ._constants import ODC_API_BASE
 
